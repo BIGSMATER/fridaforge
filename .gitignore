@@ -1,0 +1,30 @@
+# Binaries
+/fridaforge
+/bin/
+/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+*.test
+*.out
+vendor/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Opencode agent folder
+.opencode/
+
+# Test artifacts
+tests/harness/**/*.apk
