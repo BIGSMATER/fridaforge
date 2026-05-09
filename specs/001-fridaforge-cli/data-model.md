@@ -47,6 +47,8 @@ type HookSpec struct {
 
 **Go 表示**:
 ```go
+// 注意：HookTarget 不重复存储 app_package，该值从父级 HookSpec.AppPackage 获取。
+// YAML 中 hooks 列表的每条记录仅需声明 class_name、method_name、hook_type。
 type HookTarget struct {
     ClassName  string   `yaml:"class_name"`
     MethodName string   `yaml:"method_name"`
@@ -65,7 +67,7 @@ const (
 
 ### Device（设备）
 
-表示已连接的 Frida 可用设备。M1 中由桩 DeviceManager 返回。
+表示已连接的 Frida 可用设备。M1 中由桩 DeviceLister 返回。
 
 | 字段 | 类型 | 描述 |
 |------|------|------|
@@ -136,4 +138,4 @@ ValidationError ──1:N──> FieldError（组合关系）
 
 M1 无可变状态转换。实体均为不可变值类型：
 - `HookSpec` 和 `HookTarget` 从 YAML 一次性解析，视为只读。
-- `Device` 实例由 `DeviceManager.ListDevices()` 返回，为瞬时快照。
+- `Device` 实例由 `DeviceLister.ListDevices()` 返回，为瞬时快照。

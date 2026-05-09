@@ -34,7 +34,7 @@
 
 ### 决策 3: 设备管理器架构 — 接口 + 桩
 
-**决策**: 在 `pkg/device/` 中定义 `DeviceManager` 接口，M1 使用桩实现。M2 提供真实 Frida 实现。
+**决策**: 在 `pkg/device/` 中定义 `DeviceLister` 接口，M1 使用桩实现。M2 提供真实 Frida 实现。
 
 **理由**:
 - 允许 CLI 代码在无实际 Frida 依赖的情况下编写和测试。
@@ -44,7 +44,7 @@
 
 **接口设计**:
 ```go
-type DeviceManager interface {
+type DeviceLister interface {
     ListDevices(ctx context.Context) ([]Device, error)
 }
 type Device struct {

@@ -31,14 +31,14 @@
 | go vet 零告警 | 2.1 | ✅ 已计划 | 包含在 CI/Makefile 中 |
 | golangci-lint | 2.1 | ✅ 已计划 | 创建 `.golangci.yml`；CI 中运行 `golangci-lint run` |
 | 包命名：小写、单数、无下划线 | 2.2 | ✅ 已计划 | `cmd/fridaforge`、`pkg/config`、`pkg/spec`、`pkg/device` |
-| 导出命名：MixedCaps | 2.2 | ✅ 已计划 | `NewHookSpec`、`HookTarget`、`ValidateConfig` |
+| 导出命名：MixedCaps | 2.2 | ✅ 已计划 | `NewHookSpec`、`HookTarget`、`ValidateConfig`、`DeviceLister` |
 | 错误包装用 `%w` | 2.3 | ✅ 已计划 | 所有错误通过 `fmt.Errorf("...: %w", err)` 包装上下文 |
 | 禁止裸 panic | 2.3 | ✅ 已计划 | 仅 `main.go` 中使用 `log.Fatal`；库代码返回 error |
 | 并发：context.Context 生命周期 | 2.4 | ⏸️ 不适用 (M1) | M1 无 goroutine；推迟到 M2 |
 | 测试：table-driven、`*_test.go` 同目录、覆盖率 ≥ 80% | 2.5 | ✅ 已计划 | 所有导出函数使用 table-driven 测试 |
 | 所有导出项必须有 Go doc 注释 | 2.6 | ✅ 已计划 | 所有导出类型/函数必须含 Go doc 注释 |
 | 首次运行时输出伦理声明 | 3.4 | ✅ 已计划 | 根命令 `PersistentPreRun` 钩子：检查标记文件，不存在则提示 |
-| Frida 操作通过 FridaDeviceManager | 3.1 | ⏸️ 推迟 (M2) | M1 使用 `DeviceManager` 接口加桩；实际 Frida 集成在 M2 |
+| Frida 操作通过 FridaDeviceManager | 3.1 | ⏸️ 推迟 (M2) | M1 使用 `DeviceLister` 接口加桩；实际 Frida 集成在 M2 |
 | SpecKit 工作流：不跳过 clarify/analyze | 5.2 | ✅ 已计划 | M1 遵循完整 SpecKit 周期 |
 | 每个 Task 对应一个 Commit | 5.2 | ✅ 已计划 | tasks.md 每个完成的任务对应一个 Git commit |
 
@@ -72,7 +72,7 @@ cmd/
     └── spec.go              # `spec validate` 子命令
 pkg/
 ├── config/
-│   ├── loader.go            # YAML 文件加载 + viper 集成
+    │   ├── loader.go            # YAML 文件加载与解析
 │   ├── loader_test.go
 │   ├── validator.go         # HookSpec 结构校验
 │   └── validator_test.go
@@ -83,7 +83,7 @@ pkg/
 │   └── errors_test.go
 └── device/
     ├── types.go             # Device 结构体
-    ├── manager.go           # DeviceManager 接口 + 桩实现
+    ├── manager.go           # DeviceLister 接口 + 桩实现
     └── manager_test.go
 ```
 

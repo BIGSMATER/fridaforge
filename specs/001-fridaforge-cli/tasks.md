@@ -61,9 +61,9 @@ Go 标准项目布局（参见 plan.md）：
 
 > **注意：先编写测试，确保测试 FAIL 后再实现**
 
-- [ ] T009 [P] [US1] 在 `pkg/spec/types_test.go` 中编写 HookSpec/HookTarget/HookType 的 table-driven 单元测试
+- [ ] T009 [P] [US1] 在 `pkg/spec/types_test.go` 中编写 HookSpec/HookTarget/HookType 的 table-driven 单元测试；同步编写 `pkg/spec/errors_test.go` 中 ValidationError/FieldError 的单元测试
 - [ ] T010 [P] [US1] 在 `pkg/config/validator_test.go` 中编写校验器的 table-driven 单元测试（覆盖全部校验规则和边界情况）
-- [ ] T011 [P] [US1] 在 `pkg/config/loader_test.go` 中编写加载器的 table-driven 单元测试（文件 I/O、YAML 解析、错误路径）
+- [ ] T011 [P] [US1] 在 `pkg/config/loader_test.go` 中编写加载器的 table-driven 单元测试（文件 I/O、YAML 解析、错误路径、大规模输入 ≥100 hooks 性能测试、非 UTF-8 编码处理）
 
 ### 用户故事 1 的实现
 
@@ -78,9 +78,9 @@ Go 标准项目布局（参见 plan.md）：
 
 ## Phase 4: 用户故事 2 — 列出连接的设备 (优先级: P2)
 
-**目标**: `fridaforge device list` 列出已连接的设备（M1 使用桩 DeviceManager），显示设备 ID、名称和连接类型。
+**目标**: `fridaforge device list` 列出已连接的设备（M1 使用桩 DeviceLister），显示设备 ID、名称和连接类型。
 
-**独立测试**: 运行 `fridaforge device list`，桩 DeviceManager 返回预定义设备和空列表，验证输出对照 contracts/cli-commands.md。
+**独立测试**: 运行 `fridaforge device list`，桩 DeviceLister 返回预定义设备和空列表，验证输出对照 contracts/cli-commands.md。
 
 **覆盖的 FR**: FR-001、FR-007、FR-008、FR-010
 
@@ -89,13 +89,13 @@ Go 标准项目布局（参见 plan.md）：
 > **注意：先编写测试，确保测试 FAIL 后再实现**
 
 - [ ] T016 [P] [US2] 在 `pkg/device/types_test.go` 中编写 Device 结构体的 table-driven 单元测试
-- [ ] T017 [P] [US2] 在 `pkg/device/manager_test.go` 中编写 StubDeviceManager 的 table-driven 单元测试
+- [ ] T017 [P] [US2] 在 `pkg/device/manager_test.go` 中编写 StubDeviceLister 的 table-driven 单元测试
 
 ### 用户故事 2 的实现
 
 - [ ] T018 [US2] 在 `pkg/device/types.go` 中定义 Device 结构体——依赖 T005（共享模式）
-- [ ] T019 [US2] 在 `pkg/device/manager.go` 中定义 DeviceManager 接口 + StubDeviceManager 桩实现——依赖 T018
-- [ ] T020 [US2] 在 `cmd/fridaforge/device.go` 中实现 `device list` cobra 子命令（调用 DeviceManager.ListDevices，按 contracts/cli-commands.md 格式化输出）——依赖 T007、T019
+- [ ] T019 [US2] 在 `pkg/device/manager.go` 中定义 DeviceLister 接口 + StubDeviceLister 桩实现——依赖 T018
+- [ ] T020 [US2] 在 `cmd/fridaforge/device.go` 中实现 `device list` cobra 子命令（调用 DeviceLister.ListDevices，按 contracts/cli-commands.md 格式化输出）——依赖 T007、T019
 
 **检查点**: `fridaforge device list` 完整可用（桩实现）。全部 US2 测试通过。
 
@@ -186,7 +186,7 @@ Task: "在 pkg/config/validator.go 中实现 HookSpec 校验函数"
 
 # 开发者 B（并行）:
 Task: "在 pkg/device/types.go 中定义 Device 结构体"
-Task: "在 pkg/device/manager.go 中定义 DeviceManager 接口 + 桩实现"
+Task: "在 pkg/device/manager.go 中定义 DeviceLister 接口 + 桩实现"
 ```
 
 ---
@@ -229,5 +229,5 @@ Task: "在 pkg/device/manager.go 中定义 DeviceManager 接口 + 桩实现"
 - 实现前先验证测试 FAIL（red-green-refactor）
 - 每个任务或逻辑组完成后提交一次 commit（宪法 5.2）
 - 可在任意检查点停下来独立验证故事
-- M1 桩 DeviceManager 返回硬编码设备；真实 Frida 集成在 M2
+- M1 桩 DeviceLister 返回硬编码设备；真实 Frida 集成在 M2
 - `go.mod` 已存在（Go 1.25.2）；T002 仅添加缺失的依赖
