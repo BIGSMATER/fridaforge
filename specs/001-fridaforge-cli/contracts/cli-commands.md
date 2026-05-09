@@ -1,141 +1,139 @@
-# CLI Command Contracts
+# CLI 命令契约
 
-**Feature**: 001-fridaforge-cli
-**Date**: 2026-05-09
+**功能**: 001-fridaforge-cli
+**日期**: 2026-05-09
 
-## Command Tree
+## 命令树
 
 ```
-fridaforge                           # Root command
-├── device list                      # List connected devices
-├── spec validate <file>             # Validate a HookSpec YAML file
-└── help [command]                   # Show help (built-in via cobra)
+fridaforge                           # 根命令
+├── device list                      # 列出已连接的设备
+├── spec validate <文件>             # 校验 HookSpec YAML 文件
+└── help [命令]                      # 显示帮助（cobra 内置）
 ```
 
-## Global Flags
+## 全局标志
 
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--help`, `-h` | bool | false | Show help for any command |
-| `--version`, `-v` | bool | false | Print version information |
+| 标志 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `--help`, `-h` | bool | false | 显示任意命令的帮助信息 |
+| `--version`, `-v` | bool | false | 打印版本信息 |
 
-Note: M1 does not introduce `--verbose`/`--debug` (per clarification Q3).
+注意：M1 不引入 `--verbose`/`--debug`（根据澄清 Q3）。
 
 ---
 
-## Command: `fridaforge device list`
+## 命令: `fridaforge device list`
 
-List all connected Frida-capable devices.
+列出所有已连接的 Frida 可用设备。
 
-**Usage**: `fridaforge device list`
+**用法**: `fridaforge device list`
 
-**Flags**: None (M1)
+**标志**: 无 (M1)
 
-**Exit Codes**:
+**退出码**:
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success: devices listed or "no devices" message shown |
-| 1 | Error: Frida service unreachable |
+| 码 | 含义 |
+|----|------|
+| 0 | 成功：列出设备或显示"无设备"消息 |
+| 1 | 错误：Frida 服务不可达 |
 
-**Stdout (success with devices)**:
+**Stdout（成功，有设备）**:
 ```
 ID              NAME                    TYPE
 emulator-5554   Android Emulator 5554   emulator
 R5CT1234ABCD    Samsung Galaxy S21      usb
 ```
 
-**Stdout (success, no devices)**:
+**Stdout（成功，无设备）**:
 ```
-No connected devices found.
+未发现已连接的设备。
 ```
 
-**Stderr (Frida unreachable)**:
+**Stderr（Frida 不可达）**:
 ```
-Error: Frida service is not reachable. Please ensure frida-server is running on the target device.
+错误：Frida 服务不可达。请确保目标设备上 frida-server 正在运行。
 ```
-Exit code: 1
+退出码: 1
 
 ---
 
-## Command: `fridaforge spec validate <file>`
+## 命令: `fridaforge spec validate <文件>`
 
-Validate a HookSpec YAML file for structural correctness.
+校验 HookSpec YAML 文件的结构正确性。
 
-**Usage**: `fridaforge spec validate <file>`
+**用法**: `fridaforge spec validate <文件>`
 
-**Arguments**:
+**参数**:
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `<file>` | yes | Path to the YAML spec file |
+| 参数 | 必填 | 描述 |
+|------|------|------|
+| `<文件>` | 是 | YAML 规格文件的路径 |
 
-**Exit Codes**:
+**退出码**:
 
-| Code | Meaning |
-|------|---------|
-| 0 | Validation passed |
-| 1 | Validation failed (file not found, YAML syntax error, missing fields, invalid hook type) |
+| 码 | 含义 |
+|----|------|
+| 0 | 校验通过 |
+| 1 | 校验失败（文件不存在、YAML 语法错误、字段缺失、Hook 类型非法） |
 
-**Stdout (success)**:
+**Stdout（成功）**:
 ```
-✓ Valid configuration: /path/to/hooks.yaml
-  Target app: com.example.app
-  Hooks defined: 3
+✓ 配置有效: /path/to/hooks.yaml
+  目标应用: com.example.app
+  Hook 数量: 3
 ```
 
-**Stdout (validation failure)**:
+**Stdout（校验失败）**:
 ```
-✗ Invalid configuration: /path/to/hooks.yaml
-  hooks[0].class_name: must not be empty (line 3)
-  hooks[1].hook_type: unsupported value "patch" (line 8)
-  Valid hook types: overload, replace
+✗ 配置无效: /path/to/hooks.yaml
+  hooks[0].class_name: 不能为空（第 3 行）
+  hooks[1].hook_type: 不支持的值 "patch"（第 8 行）
+  支持的 Hook 类型: overload, replace
 ```
-Exit code: 1
+退出码: 1
 
-**Stderr (file not found)**:
+**Stderr（文件不存在）**:
 ```
-Error: file not found: /path/to/missing.yaml
+错误：文件不存在: /path/to/missing.yaml
 ```
-Exit code: 1
+退出码: 1
 
-**Stderr (YAML syntax error)**:
+**Stderr（YAML 语法错误）**:
 ```
-Error: cannot parse YAML: yaml: line 5: did not find expected key
+错误：无法解析 YAML: yaml: line 5: did not find expected key
 ```
-Exit code: 1
+退出码: 1
 
-**Stderr (IO error)**:
+**Stderr（IO 错误）**:
 ```
-Error: cannot read file: permission denied
+错误：无法读取文件: permission denied
 ```
-Exit code: 1
+退出码: 1
 
 ---
 
-## Ethical Disclaimer Flow
+## 伦理声明流程
 
-On first invocation of ANY command, the root command's `PersistentPreRun` executes:
+首次调用任意命令时，根命令的 `PersistentPreRun` 执行：
 
-1. Check for marker file `~/.fridaforge/agreed`
-2. If absent: print disclaimer and prompt user to type `AGREE`
-3. If user types `AGREE`: create marker file, proceed
-4. If user declines: exit code 1
+1. 检查标记文件 `~/.fridaforge/agreed`
+2. 如果不存在：打印声明并提示用户输入 `AGREE`
+3. 如果用户输入 `AGREE`：创建标记文件，继续执行
+4. 如果用户拒绝：退出码 1
 
-**Disclaimer text**:
+**声明文本**:
 ```
 ╔══════════════════════════════════════════════════════════╗
-║  FridaForge — Ethical Use Disclaimer                     ║
+║  FridaForge — 伦理使用声明                               ║
 ║                                                          ║
-║  This tool is intended for AUTHORIZED security testing   ║
-║  and educational purposes only.                          ║
+║  本工具仅供授权安全测试和教育目的使用。                      ║
 ║                                                          ║
-║  Before using FridaForge, you must have explicit          ║
-║  permission from the owner of the target application     ║
-║  and device.                                             ║
+║  使用 FridaForge 前，你必须获得目标应用和设备               ║
+║  所有者的明确许可。                                        ║
 ║                                                          ║
-║  Unauthorized use may violate applicable laws.           ║
+║  未经授权的使用可能违反适用法律。                           ║
 ║                                                          ║
-║  Type 'AGREE' to accept and continue:                    ║
+║  输入 'AGREE' 表示接受并继续：                             ║
 ╚══════════════════════════════════════════════════════════╝
 ```

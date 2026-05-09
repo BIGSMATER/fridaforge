@@ -1,39 +1,39 @@
-# Quickstart: FridaForge CLI
+# 快速入门: FridaForge CLI
 
-**Feature**: 001-fridaforge-cli
-**Date**: 2026-05-09
+**功能**: 001-fridaforge-cli
+**日期**: 2026-05-09
 
-## Prerequisites
+## 前置条件
 
-- Go 1.25 installed
-- Git
+- 已安装 Go 1.25
+- 已安装 Git
 
-## Build
+## 构建
 
 ```bash
-git clone <repo-url>
+git clone <仓库地址>
 cd fridaforge
 go build -o fridaforge ./cmd/fridaforge/
 ```
 
-Or install to `$GOPATH/bin`:
+或安装到 `$GOPATH/bin`:
 
 ```bash
 go install ./cmd/fridaforge/
 ```
 
-## Verify
+## 验证
 
 ```bash
 ./fridaforge --help
 ./fridaforge --version
 ```
 
-## Basic Usage
+## 基本用法
 
-### Validate a Hook Spec File
+### 校验 Hook 规格文件
 
-Create `test.yaml`:
+创建 `test.yaml`:
 
 ```yaml
 app_package: com.example.app
@@ -43,22 +43,22 @@ hooks:
     hook_type: overload
 ```
 
-Validate:
+校验:
 
 ```bash
 ./fridaforge spec validate test.yaml
-# ✓ Valid configuration: test.yaml
-#   Target app: com.example.app
-#   Hooks defined: 1
+# ✓ 配置有效: test.yaml
+#   目标应用: com.example.app
+#   Hook 数量: 1
 ```
 
-### List Devices
+### 列出设备
 
 ```bash
 ./fridaforge device list
 ```
 
-## Running Tests
+## 运行测试
 
 ```bash
 go test ./...
@@ -66,19 +66,19 @@ go test -cover ./...
 go test -v ./pkg/config/
 ```
 
-## Project Layout
+## 项目布局
 
 ```
-cmd/fridaforge/   — CLI entry point (cobra commands)
-pkg/config/       — YAML loading and validation
-pkg/spec/         — Data types (HookSpec, HookTarget, etc.)
-pkg/device/       — Device manager interface
+cmd/fridaforge/   — CLI 入口点（cobra 命令）
+pkg/config/       — YAML 加载与校验
+pkg/spec/         — 数据类型（HookSpec、HookTarget 等）
+pkg/device/       — 设备管理器接口
 ```
 
-## Troubleshooting
+## 故障排查
 
-| Problem | Solution |
-|---------|----------|
-| `fridaforge: command not found` | Ensure `$GOPATH/bin` is in `$PATH` or use `./fridaforge` |
-| `go: module not found` | Run `go mod tidy` first |
-| Build fails | Ensure Go 1.25 is installed: `go version` |
+| 问题 | 解决方案 |
+|------|----------|
+| `fridaforge: 未找到命令` | 确保 `$GOPATH/bin` 在 `$PATH` 中，或使用 `./fridaforge` |
+| `go: 未找到模块` | 先运行 `go mod tidy` |
+| 构建失败 | 确保 Go 1.25 已安装：`go version` |

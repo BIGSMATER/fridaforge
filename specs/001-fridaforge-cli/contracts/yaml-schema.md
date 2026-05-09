@@ -1,55 +1,55 @@
-# YAML Schema Contract
+# YAML 结构契约
 
-**Feature**: 001-fridaforge-cli
-**Date**: 2026-05-09
+**功能**: 001-fridaforge-cli
+**日期**: 2026-05-09
 
-## HookSpec File Schema
+## HookSpec 文件结构
 
-### Version
+### 版本
 
-Schema version 1 (M1). No explicit version field required; all files are treated as v1.
+结构版本 v1 (M1)。无需显式版本字段；所有文件均视为 v1。
 
-### Structure
+### 结构
 
 ```yaml
-# Required: top-level application package name
+# 必填：顶层应用包名
 app_package: <string>
 
-# Required: list of hook targets (at least one)
+# 必填：Hook 目标列表（至少一个）
 hooks:
-  - class_name: <string>    # Required: fully qualified Dalvik class name
-    method_name: <string>   # Required: method name to hook
-    hook_type: <enum>       # Required: "overload" | "replace"
+  - class_name: <string>    # 必填：Dalvik 类全限定名
+    method_name: <string>   # 必填：要 Hook 的方法名
+    hook_type: <enum>       # 必填："overload" | "replace"
 ```
 
-### Constraints
+### 约束
 
-| Field | Constraint |
-|-------|------------|
-| `app_package` | Non-empty string. Dot-separated segments. |
-| `hooks` | Must be a list with ≥1 entry. |
-| `hooks[].class_name` | Non-empty string. Dot-separated fully qualified Java class name. |
-| `hooks[].method_name` | Non-empty string. Method name only (no parameter signatures in M1). |
-| `hooks[].hook_type` | Must be exactly `"overload"` or `"replace"`. |
+| 字段 | 约束 |
+|------|------|
+| `app_package` | 非空字符串。点分隔的段。 |
+| `hooks` | 必须为列表，≥ 1 个条目。 |
+| `hooks[].class_name` | 非空字符串。点分隔的 Java 类全限定名。 |
+| `hooks[].method_name` | 非空字符串。仅方法名（M1 无参数签名）。 |
+| `hooks[].hook_type` | 必须严格为 `"overload"` 或 `"replace"`。 |
 
-### Validation Order
+### 校验顺序
 
-1. File existence and readability
-2. UTF-8 encoding check
-3. YAML syntax parse
-4. Top-level schema: `app_package` and `hooks` fields present
-5. `app_package` non-empty
-6. `hooks` is a list with ≥1 entries
-7. Each hook entry:
-   a. Required fields present: `class_name`, `method_name`, `hook_type`
-   b. Required fields non-empty
-   c. `hook_type` value is valid (`overload` or `replace`)
-8. Warnings (non-blocking):
-   a. Unknown top-level keys
-   b. Unknown keys within hook entries
-   c. Duplicate `class_name` + `method_name` combinations
+1. 文件存在且可读
+2. UTF-8 编码检查
+3. YAML 语法解析
+4. 顶层结构：`app_package` 和 `hooks` 字段存在
+5. `app_package` 非空
+6. `hooks` 为列表且 ≥ 1 个条目
+7. 每个 hook 条目：
+   a. 必填字段存在：`class_name`、`method_name`、`hook_type`
+   b. 必填字段非空
+   c. `hook_type` 值为合法值（`overload` 或 `replace`）
+8. 警告（不阻断通过）：
+   a. 未知顶层键
+   b. hook 条目中的未知键
+   c. 重复的 `class_name` + `method_name` 组合
 
-### Complete Valid Example
+### 合法完整示例
 
 ```yaml
 app_package: com.example.bank
@@ -67,48 +67,48 @@ hooks:
     hook_type: overload
 ```
 
-### Invalid Examples
+### 非法示例
 
-**Missing required field**:
+**缺少必填字段**:
 ```yaml
 app_package: com.example.app
 hooks:
   - class_name: com.example.Foo
-    # method_name missing → error
+    # method_name 缺失 → 错误
     hook_type: overload
 ```
 
-**Invalid hook type**:
+**非法 hook 类型**:
 ```yaml
 app_package: com.example.app
 hooks:
   - class_name: com.example.Foo
     method_name: bar
-    hook_type: patch    # → error: must be "overload" or "replace"
+    hook_type: patch    # → 错误：必须是 "overload" 或 "replace"
 ```
 
-**Empty hooks list**:
+**空 hooks 列表**:
 ```yaml
 app_package: com.example.app
-hooks: []    # → error: at least one hook required
+hooks: []    # → 错误：至少需要一个 hook
 ```
 
-**Missing top-level field**:
+**缺失顶层字段**:
 ```yaml
-# app_package missing → error
+# app_package 缺失 → 错误
 hooks:
   - class_name: com.example.Foo
     method_name: bar
     hook_type: overload
 ```
 
-### File Naming Convention
+### 文件命名约定
 
-- Extension: `.yaml` or `.yml`
-- Encoding: UTF-8
+- 扩展名：`.yaml` 或 `.yml`
+- 编码：UTF-8
 
-### Extensibility (Future)
+### 可扩展性（未来）
 
-- M3 will add optional `params` field to `hooks[]` for parameter signatures.
-- M4 may add top-level `config` block for global hook settings.
-- Reserved key prefix: `x-` for user extensions (will be silently ignored).
+- M3 将为 `hooks[]` 增加可选 `params` 字段用于参数签名。
+- M4 可能增加顶层 `config` 块用于全局 Hook 设置。
+- 保留键前缀：`x-` 用于用户扩展（将被静默忽略）。

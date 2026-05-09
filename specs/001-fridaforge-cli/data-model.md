@@ -1,25 +1,25 @@
-# Data Model: FridaForge CLI 命令行工具
+# 数据模型: FridaForge CLI 命令行工具
 
-**Feature**: 001-fridaforge-cli
-**Date**: 2026-05-09
+**功能**: 001-fridaforge-cli
+**日期**: 2026-05-09
 
-## Core Entities
+## 核心实体
 
-### HookSpec
+### HookSpec（Hook 规格文件）
 
-Top-level representation of a YAML spec file. One file = one target application.
+YAML 规格文件的顶层表示。一个文件 = 一个目标应用。
 
-| Field | Type | Required | YAML Key | Description |
-|-------|------|----------|----------|-------------|
-| AppPackage | string | yes | `app_package` | Android application package name (e.g. `com.example.app`) |
-| Hooks | []HookTarget | yes (≥1) | `hooks` | List of hook targets for this application |
+| 字段 | 类型 | 必填 | YAML 键 | 描述 |
+|------|------|------|---------|------|
+| AppPackage | string | 是 | `app_package` | Android 应用包名（如 `com.example.app`） |
+| Hooks | []HookTarget | 是（≥1） | `hooks` | 该应用的 Hook 目标列表 |
 
-**Validation rules**:
-- `app_package` must not be empty
-- `hooks` must contain at least one entry
-- File must be valid UTF-8 encoded YAML
+**校验规则**:
+- `app_package` 不能为空
+- `hooks` 必须包含至少一个条目
+- 文件必须是合法的 UTF-8 编码 YAML
 
-**Go representation**:
+**Go 表示**:
 ```go
 type HookSpec struct {
     AppPackage string       `yaml:"app_package"`
@@ -29,23 +29,23 @@ type HookSpec struct {
 
 ---
 
-### HookTarget
+### HookTarget（Hook 目标）
 
-A single hook declaration targeting a specific class method.
+单条 Hook 声明，针对特定类的特定方法。
 
-| Field | Type | Required | YAML Key | Description |
-|-------|------|----------|----------|-------------|
-| ClassName | string | yes | `class_name` | Fully qualified Dalvik class name (e.g. `com.example.MainActivity`) |
-| MethodName | string | yes | `method_name` | Method name to hook (e.g. `onCreate`). M1 does not include parameter signatures. |
-| HookType | HookType | yes | `hook_type` | Type of hook: `overload` or `replace` |
+| 字段 | 类型 | 必填 | YAML 键 | 描述 |
+|------|------|------|---------|------|
+| ClassName | string | 是 | `class_name` | Dalvik 类全限定名（如 `com.example.MainActivity`） |
+| MethodName | string | 是 | `method_name` | 要 Hook 的方法名（如 `onCreate`）。M1 不包含参数签名。 |
+| HookType | HookType | 是 | `hook_type` | Hook 类型：`overload` 或 `replace` |
 
-**Validation rules**:
-- All three fields must be non-empty
-- `hook_type` must be one of: `overload`, `replace`
-- Unknown YAML keys in HookTarget should generate a warning
-- Duplicate `class_name` + `method_name` combinations should generate a warning
+**校验规则**:
+- 三个字段均不能为空
+- `hook_type` 必须是以下之一：`overload`、`replace`
+- HookTarget 中的未知 YAML 键应产生警告
+- 重复的 `class_name` + `method_name` 组合应产生警告
 
-**Go representation**:
+**Go 表示**:
 ```go
 type HookTarget struct {
     ClassName  string   `yaml:"class_name"`
@@ -63,17 +63,17 @@ const (
 
 ---
 
-### Device
+### Device（设备）
 
-Represents a connected Frida-capable device. In M1, returned by the stub DeviceManager.
+表示已连接的 Frida 可用设备。M1 中由桩 DeviceManager 返回。
 
-| Field | Type | Description |
-|-------|------|-------------|
-| ID | string | Unique device identifier |
-| Name | string | Human-readable device name |
-| ConnectType | string | Connection type: `"usb"`, `"network"`, `"emulator"` |
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| ID | string | 设备唯一标识符 |
+| Name | string | 人类可读的设备名称 |
+| ConnectType | string | 连接类型：`"usb"`、`"network"`、`"emulator"` |
 
-**Go representation**:
+**Go 表示**:
 ```go
 type Device struct {
     ID          string
@@ -84,35 +84,35 @@ type Device struct {
 
 ---
 
-### ValidationError
+### ValidationError（校验错误）
 
-Aggregated validation result returned when spec validation fails.
+规格校验失败时返回的聚合校验结果。
 
-| Field | Type | Description |
-|-------|------|-------------|
-| Errors | []FieldError | List of field-level validation errors |
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| Errors | []FieldError | 字段级校验错误列表 |
 
-**Go representation**:
+**Go 表示**:
 ```go
 type ValidationError struct {
     Errors []FieldError
 }
 
-func (e *ValidationError) Error() string { /* renders all field errors */ }
+func (e *ValidationError) Error() string { /* 渲染所有字段错误 */ }
 
 type FieldError struct {
-    Path    string // e.g. "hooks[0].class_name"
-    Message string // e.g. "must not be empty"
-    Line    int    // YAML line number (if available)
+    Path    string // 如 "hooks[0].class_name"
+    Message string // 如 "不能为空"
+    Line    int    // YAML 行号（如果有的话）
 }
 ```
 
 ---
 
-### YAML Schema (Complete Example)
+### YAML 结构（完整示例）
 
 ```yaml
-# Single app spec file
+# 单应用规格文件
 app_package: com.example.targetapp
 hooks:
   - class_name: com.example.MainActivity
@@ -124,16 +124,16 @@ hooks:
     hook_type: replace
 ```
 
-## Entity Relationships
+## 实体关系
 
 ```
 HookSpec ──1:N──> HookTarget
-Device (standalone, no relationship to HookSpec in M1)
-ValidationError ──1:N──> FieldError (composition)
+Device（独立实体，M1 中与 HookSpec 无关）
+ValidationError ──1:N──> FieldError（组合关系）
 ```
 
-## State Transitions
+## 状态转换
 
-M1 has no mutable state transitions. Entities are immutable value types:
-- `HookSpec` and `HookTarget` are parsed once from YAML and treated as read-only.
-- `Device` instances are returned from `DeviceManager.ListDevices()` and are ephemeral (reflect point-in-time snapshot).
+M1 无可变状态转换。实体均为不可变值类型：
+- `HookSpec` 和 `HookTarget` 从 YAML 一次性解析，视为只读。
+- `Device` 实例由 `DeviceManager.ListDevices()` 返回，为瞬时快照。
