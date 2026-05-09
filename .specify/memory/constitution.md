@@ -137,15 +137,16 @@ FridaForge 是一个 **声明式 Frida 脚本工程化平台**。它允许安全
 禁止让 AI 代理直接生成最终答案——必须先交付"理解"，再交付"代码"。
 
 ### 6.2 学习文档要求
-- 每个 Milestone 完成后产出学习笔记至 `docs/learn/M[x]-*.md`，必须包含：
-  - 本阶段 Go 知识点
+- 每个 Milestone 进入 `/speckit.implement` 前，必须先产出教学文档至 `docs/learn/M[x]-*.md`，必须包含：
+  - 本阶段 Go 知识点（每个概念配独立可运行的迷你代码示例，而非项目正式代码）
   - 本阶段逆向/底层知识点
   - 本阶段 AI 编程认知突破
-- 每引入新 Go 特性或逆向概念，必须先讲解后编码。
+- 教学文档以代码驱动——用 10-20 行的独立 Go 示例讲解语法，学员看懂后再进入项目代码实现。
+- 学员确认理解后，方可执行 `/speckit.implement`。
 - SpecKit 各阶段的设计哲学详见独立文档 `docs/reference/speckit-rationale.md`。
 
 ---
 
 > 本宪法由项目导师与学员共同维护。修订需经双方讨论并达成共识。
 
-**Version**: 0.1.0 | **Ratified**: 2026-05-08 | **Last Amended**: 2026-05-08
+**Version**: 0.2.0 | **Ratified**: 2026-05-08 | **Last Amended**: 2026-05-09
