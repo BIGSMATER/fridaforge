@@ -107,4 +107,61 @@ hooks:
 			t.Error("LoadSpec() expected error for invalid YAML")
 		}
 	})
+
+	t.Run("three hooks with mixed types", func(t *testing.T) {
+		content := `app_package: com.example.multi
+hooks:
+  - class_name: com.example.a.MainActivity
+    method_name: onCreate
+    hook_type: overload
+  - class_name: com.example.b.Crypto
+    method_name: encrypt
+    hook_type: replace
+  - class_name: com.example.c.Network
+    method_name: sendRequest
+    hook_type: overload
+`
+		path := filepath.Join(tmpDir, "multi.yaml")
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatalf("写入测试文件失败: %v", err)
+		}
+
+		s, err := LoadSpec(path)
+		if err != nil {
+			t.Fatalf("LoadSpec() unexpected error: %v", err)
+		}
+		if s.AppPackage != "com.example.multi" {
+			t.Errorf("AppPackage = %q", s.AppPackage)
+		}
+		if len(s.Hooks) != 3 {
+			t.Fatalf("len(Hooks) = %d, want 3", len(s.Hooks))
+		}
+
+		// 全字段校验
+		expected := []struct {
+			class  string
+			method string
+			ht     spec.HookType
+		}{
+			{"com.example.a.MainActivity", "onCreate", spec.HookTypeOverload},
+			{"com.example.b.Crypto", "encrypt", spec.HookTypeReplace},
+			{"com.example.c.Network", "sendRequest", spec.HookTypeOverload},
+		}
+		for i, exp := range expected {
+			if s.Hooks[i].ClassName != exp.class {
+				t.Errorf("Hooks[%d].ClassName = %q", i, s.Hooks[i].ClassName)
+			}
+			if s.Hooks[i].MethodName != exp.method {
+				t.Errorf("Hooks[%d].MethodName = %q", i, s.Hooks[i].MethodName)
+			}
+			if s.Hooks[i].HookType != exp.ht {
+				t.Errorf("Hooks[%d].HookType = %q", i, s.Hooks[i].HookType)
+			}
+		}
+
+		// 加载后校验应通过
+		if err := Validate(s); err != nil {
+			t.Errorf("Validate() after LoadSpec should pass, got: %v", err)
+		}
+	})
 }
