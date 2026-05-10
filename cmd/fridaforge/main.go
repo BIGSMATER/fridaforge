@@ -20,9 +20,11 @@ func main() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:     "fridaforge",
-	Short:   "声明式 Frida 脚本工程化平台",
-	Version: version,
+	Use:           "fridaforge",
+	Short:         "声明式 Frida 脚本工程化平台",
+	Version:       version,
+	SilenceErrors: true,
+	SilenceUsage:  true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if err := checkEthicalDisclaimer(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
