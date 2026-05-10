@@ -481,6 +481,149 @@ cover:
 
 **`go test -v` 的 `-v`**：没有它，测试输出只有 `PASS`/`FAIL`。加上 `-v`，你会看到每个 `t.Run("xxx", ...)` 的子测试名和结果，这就是学习笔记 1.5 讲的 table-driven test 中的子测试。
 
+### 1.13 Go 枚举模式 — `type X string` + const
+
+Go **没有** `enum` 关键字。社区的惯用做法是用一个**自定义 string 类型**配合 `const` 来模拟枚举：
+
+```go
+type HookType string   // 1. 定义新类型，底层是 string
+
+const (
+    HookTypeOverload HookType = "overload"   // 2. const 列值
+    HookTypeReplace  HookType = "replace"
+)
+```
+
+**为什么不能直接用 `const` 字符串？**
+
+```go
+// 如果这样写：
+const Overload = "overload"
+const Replace  = "replace"
+
+func validate(ht string) { ... }
+
+validate(Overload)  // ✅
+validate("hack")     // ✅ 也编译通过！运行时才发现不对
+```
+
+有了自定义类型 `HookType`，编译期就有类型检查：
+
+```go
+func validate(ht HookType) { ... }
+
+validate(HookTypeOverload)  // ✅
+validate("hack")             // ❌ 编译报错：cannot use "hack" (string) as HookType
+```
+
+**核心收益**：把 runtime bug → compile-time error。这是 Go 类型系统的一个重要设计哲学：**宁可编译器多报错，也不要运行时崩溃。**
+
+字符串比较也是类型安全的：
+```go
+if h.HookType == HookTypeOverload { ... }  // ✅
+if h.HookType == "overload" { ... }        // ❌ 编译报错
+```
+
+### 1.14 Go error 接口深入 — 自定义错误类型
+
+Go 的 `error` 接口只有一个方法：
+
+```go
+type error interface {
+    Error() string   // 就这一个方法
+}
+```
+
+**任何有 `Error() string` 方法的类型，就是一个 error。** 这跟 Java 的 `implements Exception` 完全不同——不需要继承、不需要注册。
+
+**自定义错误类型**：
+
+```go
+// 定义一个可以包含多个字段错误的错误类型
+type ValidationError struct {
+    Errors []FieldError
+}
+
+// 实现 error 接口
+func (e *ValidationError) Error() string {
+    // 把所有字段错误的描述拼接成一个字符串
+    var b strings.Builder
+    for _, fe := range e.Errors {
+        b.WriteString(fe.Error())
+    }
+    return b.String()
+}
+```
+
+现在 `*ValidationError` 就是一个 `error`，可以在任何接受 `error` 的地方使用：
+
+```go
+func Validate(s *HookSpec) error {    // 返回类型是 error 接口
+    var ve ValidationError
+    // ... 收集错误
+    return &ve                        // 实际返回的是 *ValidationError
+                                      // 因为它实现了 error 接口，编译通过
+}
+```
+
+消费端可以用**类型断言**来判断具体是哪种错误：
+
+```go
+if validationErr, ok := err.(*ValidationError); ok {
+    // 这是校验错误，可以访问 validationErr.Errors 列表
+}
+```
+
+**`strings.Builder` — 高效字符串拼接**：
+
+在 `Error()` 方法里没有用 `s += "..."` 而是用了 `strings.Builder`。原因是 Go 的字符串是**不可变的**（immutable）——每次 `+=` 都会在内存里分配一份全新字符串并拷贝所有内容。10 个错误字段就是 10 次重新分配 + 拷贝。
+
+`strings.Builder` 内部用 `[]byte` 缓冲，只在最后 `b.String()` 时一次性创建字符串，减少 CPU 和 GC 压力。
+
+### 1.15 cobra 进阶 — 钩子、静默模式、标记文件
+
+**`PersistentPreRun` — 全局前置钩子**：
+
+```go
+var rootCmd = &cobra.Command{
+    PersistentPreRun: func(cmd *cobra.Command, args []string) {
+        checkEthicalDisclaimer()   // 每个子命令执行前都走这里
+    },
+}
+```
+
+`Persistent` 表示**传播**——根命令的 `PersistentPreRun` 对所有子命令生效。无论执行 `fridaforge spec validate` 还是 `fridaforge device list`，都先跑这个钩子。对比：`PreRun` 只对当前命令生效，不传播。
+
+**`SilenceErrors` + `SilenceUsage`**：
+
+cobra 的默认行为：`RunE` 返回 error → cobra 内部打印一次错误 + 打印 usage + `Execute()` 返回 error → `main()` 再打印一次。结果错误重复三次。
+
+```go
+SilenceErrors: true,  // cobra 不打印错误，交给 main() 统一处理
+SilenceUsage:  true,  // 错误时不显示 Usage（太啰嗦）
+```
+
+**标记文件模式（Marker File）**：
+
+```go
+markerFile := filepath.Join(homeDir, ".fridaforge", "agreed")
+if _, err := os.Stat(markerFile); err == nil {
+    return nil  // 文件存在 → 用户已同意 → 跳过
+}
+// ... 显示伦理声明，要求输入 AGREE
+os.MkdirAll(filepath.Dir(markerFile), 0700)
+os.WriteFile(markerFile, []byte{}, 0600)
+```
+
+这是一个经典的"只执行一次"模式。很多 Unix 工具都用：
+- Git：`~/.gitconfig` 存在 → 已初始化
+- npm：`~/.npmrc` 存在 → 已配置
+- FridaForge：`~/.fridaforge/agreed` 存在 → 已同意
+
+`os.Stat()` 返回文件信息；文件不存在时返回 error。这里只关心存在性，所以用 `_` 忽略返回的 `FileInfo`。
+
+**Unix 文件权限**：`0700`（目录，仅所有者）和 `0600`（文件，仅所有者读写）。对包含隐私的配置文件（"我同意使用安全测试工具"），应该限制权限。
+
 ---
 
 ## 二、逆向/底层轨道
