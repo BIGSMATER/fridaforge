@@ -4,9 +4,9 @@ package device
 type ConnectType string
 
 const (
-	ConnectTypeUSB       ConnectType = "usb"
-	ConnectTypeNetwork   ConnectType = "network"
-	ConnectTypeEmulator  ConnectType = "emulator"
+	ConnectTypeUSB      ConnectType = "usb"
+	ConnectTypeNetwork  ConnectType = "network"
+	ConnectTypeEmulator ConnectType = "emulator"
 )
 
 // Device 表示一台已连接的 Frida 可用设备。
