@@ -4,8 +4,11 @@ package device
 type ConnectType string
 
 const (
-	ConnectTypeUSB      ConnectType = "usb"
-	ConnectTypeNetwork  ConnectType = "network"
+	// ConnectTypeUSB 表示通过 USB 线缆连接。
+	ConnectTypeUSB ConnectType = "usb"
+	// ConnectTypeNetwork 表示通过网络（TCP）连接。
+	ConnectTypeNetwork ConnectType = "network"
+	// ConnectTypeEmulator 表示 Android 模拟器设备。
 	ConnectTypeEmulator ConnectType = "emulator"
 )
 
