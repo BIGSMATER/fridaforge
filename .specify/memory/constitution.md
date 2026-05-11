@@ -116,7 +116,7 @@ FridaForge 是一个 **声明式 Frida 脚本工程化平台**。它允许安全
 ### 5.2 SpecKit 工作流约束
 - 所有功能开发必须经过完整 SpecKit 流程：`/speckit.specify → clarify → plan → tasks → analyze → implement`。
 - 禁止跳过 `clarify` 和 `analyze` 阶段直接进入 `implement`。
-- 每完成一个 Task，Git Commit 一次（最小可回滚单元）。
+- 每完成一个 Task 或逻辑相关的一组 Task，Git Commit 一次。同文件中的多个 Task 应合并为一个 commit（避免提交不完整的文件）；不同 package 的 Task 应分开 commit。Commit message 包含对应的 Task ID。
 - 每个 Milestone 完成后必须进行回顾，更新宪法（如需）。
 
 ### 5.3 版本管理
@@ -137,13 +137,13 @@ FridaForge 是一个 **声明式 Frida 脚本工程化平台**。它允许安全
 禁止让 AI 代理直接生成最终答案——必须先交付"理解"，再交付"代码"。
 
 ### 6.2 学习文档要求
-- 每个 Milestone 进入 `/speckit.implement` 前，必须先产出教学文档至 `docs/learn/M[x]-*.md`，必须包含：
-  - 本阶段 Go 知识点（每个概念配独立可运行的迷你代码示例，而非项目正式代码）
+- 每个 Milestone 在 `/speckit.implement` 开始前产出教学文档**初始版**至 `docs/learn/M[x]-*.md`，用经典的独立迷你代码示例（10-20 行，不依赖项目上下文）讲解该阶段核心 Go 概念和逆向知识点。
+- 实现阶段采用**每个 Phase 教学-编码交替模式**：写代码前先讲该 Phase 涉及的新概念，代码写完后在对应章节补充项目真实代码示例（标注"项目实际代码"），让独立示例和项目代码形成对照。
+- 若某个概念学员表示困惑，暂停编码，先展开教学，补充文档后再继续。
+- 教学文档必须包含三轨内容：
+  - 本阶段 Go 知识点
   - 本阶段逆向/底层知识点
   - 本阶段 AI 编程认知突破
-- 教学文档以代码驱动——用 10-20 行的独立 Go 示例讲解语法，学员看懂后再进入项目代码实现。
-- 学员确认理解后，方可执行 `/speckit.implement`。
-- SpecKit 各阶段的设计哲学详见独立文档 `docs/reference/speckit-rationale.md`。
 
 ---
 

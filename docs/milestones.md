@@ -2,7 +2,7 @@
 
 > 本文档记录项目从 M0 到 M7 的完整里程碑路线图。每个 Milestone 的执行严格遵循 SpecKit 工作流。
 
-## 当前状态：M0 完成 → 准备进入 M1
+## 当前状态：M1 完成 → 准备进入 M2
 
 ---
 
@@ -18,14 +18,15 @@
 
 ---
 
-## M1：CLI 骨架与声明式配置解析 ← 当前阶段
+## M1：CLI 骨架与声明式配置解析 ✅
 
 | 维度 | 内容 |
 |------|------|
-| **SpecKit 流程** | `/speckit.specify` → `clarify` → `plan` → `tasks` → `analyze` → `implement` |
-| **Go 知识** | **基础语法：** `package`/`import`、`struct` + JSON tag、`func` 与方法接收者、`if err != nil`、`slice`/`map`、`fmt`、`os.Args`；**CLI 框架：** `cobra.Command` 树形命令注册、`viper` 配置绑定、`yaml.v3` 反序列化 |
-| **逆向知识** | YAML Spec 的逆向语义：`className` → Dalvik 类全限定名、`methodName` → ART 方法签名格式、`hookType` → `overload`/`replace` 差异 |
-| **目标产出** | `cmd/fridaforge/` (CLI 入口完整), `pkg/config/`, `pkg/spec/` |
+| **SpecKit 流程** | `/speckit.specify` → `clarify` → `plan` → `tasks` → `analyze` → `implement`（全部完成） |
+| **Go 知识** | **基础语法：** `package`/`import`、`struct` + tag、`func` 与方法接收者、`if err != nil` + `%w`、`slice`/`map`、`fmt`、`os.Args`；**CLI 框架：** `cobra.Command` 树形命令注册、`yaml.v3` 反序列化；**工程设计：** `interface` 抽象、`context.Context`、`text/tabwriter`、`init()` 自动初始化、逃逸分析、nil 接口陷阱；**工具链：** `go.mod`/`go.sum`/GOPROXY、golangci-lint、Makefile |
+| **逆向知识** | YAML Spec 的逆向语义：`className` → Dalvik 类全限定名、`methodName` → ART 方法签名格式、`hookType` → `overload`/`replace` 差异；Frida 三端架构（开发端/传输层/目标端）、frida-core/frida-server/frida-agent 分工 |
+| **目标产出** | `cmd/fridaforge/` (CLI 入口完整), `pkg/config/`, `pkg/spec/`, `pkg/device/`；14 个 Go 源文件；覆盖率 100%；教学文档 1146 行 |
+> 注：`viper` 原计划使用，M1 评估后认为 `os.ReadFile` + `yaml.Unmarshal` 足够——viper 的核心价值在多来源配置合并，M1 无需此能力。推迟到 M2+。
 
 ---
 
@@ -94,12 +95,29 @@
 ```
 M[x] 启动
   │
-  ├─ 1. 导师讲解本阶段 Go + 逆向知识点 → docs/learn/M[x]-*.md
+  ├─ 阶段 A：SpecKit 规划（固定顺序，严格执行）
+  │   ├─ 1. /speckit.specify  → 用户定义功能需求 (spec.md)
+  │   ├─ 2. /speckit.clarify  → AI 找出边界漏洞和模糊点
+  │   ├─ 3. /speckit.plan     → 技术架构与接口契约 (plan.md + research.md + data-model.md + contracts/)
+  │   ├─ 4. /speckit.tasks    → 拆解为 Task 清单 (tasks.md)
+  │   └─ 5. /speckit.analyze  → 交叉验证 spec/plan/tasks 一致性（实现前）
   │
-  ├─ 2. /speckit.specify  → 用户定义功能需求 (spec.md)
-  ├─ 3. /speckit.clarify  → AI 找出边界漏洞和模糊点
-  ├─ 4. /speckit.plan     → 输出技术架构与接口契约 (plan.md + contracts/)
-  ├─ 5. /speckit.tasks    → 拆解为 Checkbox 任务清单 (tasks.md)
-  ├─ 6. /speckit.analyze  → 交叉验证 spec/plan/tasks 一致性
-  └─ 7. /speckit.implement → 用户确认后逐项编写代码 (每 Task 一 Commit)
+  ├─ 阶段 B：教学准备（实现前）
+  │   └─ 6. 产出教学文档初始版 docs/learn/M[x]-*.md
+  │      （用独立迷你代码示例讲解核心概念，三轨齐全）
+  │
+  └─ 阶段 C：实现（每个 Phase = 讲解 → 编码 → 补充学习文档 → Commit）
+      └─ 7. /speckit.implement
+          ├─ Phase N 讲解（该 Phase 涉及的新概念，独立示例先行）
+          ├─ Phase N 编码（按 tasks.md 逐 Task 执行）
+          ├─ Phase N 补充教学文档（在对应章节追加项目真实代码示例）
+          ├─ Commit（逻辑相关的 1-3 个 Task 可合并，同文件 Task 必须合并）
+          └─ 学员确认 → 继续下一 Phase
+      │
+      └─ 8. Milestone 收尾
+          ├─ /speckit.analyze（实现后再次交叉验证，检查代码 vs 文档一致性）
+          ├─ 更新 milestones.md 本阶段实际产出物
+          ├─ 更新教学文档状态为"已完成"
+          ├─ Review & commit
+          └─ 合并到主分支
 ```

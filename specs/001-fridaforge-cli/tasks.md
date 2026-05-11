@@ -27,10 +27,10 @@ Go 标准项目布局（参见 plan.md）：
 
 **目标**: 项目初始化和基础工具配置
 
-- [ ] T001 创建目录结构：`cmd/fridaforge/`、`pkg/config/`、`pkg/spec/`、`pkg/device/`
-- [ ] T002 用 `go get` 向 go.mod 添加 Go 依赖（cobra、viper、yaml.v3）
-- [ ] T003 [P] 在仓库根目录创建 `.golangci.yml` lint 配置文件
-- [ ] T004 [P] 在仓库根目录创建 `Makefile`，包含 target：`build`、`test`、`lint`、`cover`
+- [x] T001 创建目录结构：`cmd/fridaforge/`、`pkg/config/`、`pkg/spec/`、`pkg/device/`
+- [x] T002 用 `go get` 向 go.mod 添加 Go 依赖（cobra、viper、yaml.v3）
+- [x] T003 [P] 在仓库根目录创建 `.golangci.yml` lint 配置文件
+- [x] T004 [P] 在仓库根目录创建 `Makefile`，包含 target：`build`、`test`、`lint`、`cover`
 
 ---
 
@@ -40,10 +40,10 @@ Go 标准项目布局（参见 plan.md）：
 
 **⚠️ 关键**: 此阶段完成前，任何用户故事都不得开始
 
-- [ ] T005 在 `pkg/spec/types.go` 中创建 HookSpec、HookTarget、HookType 结构体（含 yaml 标签）
-- [ ] T006 [P] 在 `pkg/spec/errors.go` 中创建 ValidationError、FieldError 错误类型
-- [ ] T007 在 `cmd/fridaforge/main.go` 中创建根 cobra 命令（含 `--version` 标志）
-- [ ] T008 在 `cmd/fridaforge/main.go` 中实现伦理声明 PersistentPreRun（标记文件检查、AGREE 提示）
+- [x] T005 在 `pkg/spec/types.go` 中创建 HookSpec、HookTarget、HookType 结构体（含 yaml 标签）
+- [x] T006 [P] 在 `pkg/spec/errors.go` 中创建 ValidationError、FieldError 错误类型
+- [x] T007 在 `cmd/fridaforge/main.go` 中创建根 cobra 命令（含 `--version` 标志）
+- [x] T008 在 `cmd/fridaforge/main.go` 中实现伦理声明 PersistentPreRun（标记文件检查、AGREE 提示）
 
 **检查点**: 基础设施就绪——数据类型和 CLI 骨架已存在。可以开始用户故事实现。
 
@@ -61,16 +61,16 @@ Go 标准项目布局（参见 plan.md）：
 
 > **注意：先编写测试，确保测试 FAIL 后再实现**
 
-- [ ] T009 [P] [US1] 在 `pkg/spec/types_test.go` 中编写 HookSpec/HookTarget/HookType 的 table-driven 单元测试；同步编写 `pkg/spec/errors_test.go` 中 ValidationError/FieldError 的单元测试
-- [ ] T010 [P] [US1] 在 `pkg/config/validator_test.go` 中编写校验器的 table-driven 单元测试（覆盖全部校验规则和边界情况）
-- [ ] T011 [P] [US1] 在 `pkg/config/loader_test.go` 中编写加载器的 table-driven 单元测试（文件 I/O、YAML 解析、错误路径、大规模输入 ≥100 hooks 性能测试、非 UTF-8 编码处理）
+- [x] T009 [P] [US1] 在 `pkg/spec/types_test.go` 中编写 HookSpec/HookTarget/HookType 的 table-driven 单元测试；同步编写 `pkg/spec/errors_test.go` 中 ValidationError/FieldError 的单元测试
+- [x] T010 [P] [US1] 在 `pkg/config/validator_test.go` 中编写校验器的 table-driven 单元测试（覆盖全部校验规则和边界情况）
+- [x] T011 [P] [US1] 在 `pkg/config/loader_test.go` 中编写加载器的 table-driven 单元测试（文件 I/O、YAML 解析、错误路径、大规模输入 ≥100 hooks 性能测试、非 UTF-8 编码处理）
 
 ### 用户故事 1 的实现
 
-- [ ] T012 [US1] 在 `pkg/config/loader.go` 中实现 YAML 文件加载函数 `LoadSpec(path string) (*spec.HookSpec, error)`——依赖 T005、T006
-- [ ] T013 [US1] 在 `pkg/config/validator.go` 中实现 HookSpec 校验函数 `Validate(spec *spec.HookSpec) error`（含结构化字段错误）——依赖 T005、T006
-- [ ] T014 [US1] 在 `cmd/fridaforge/spec.go` 中实现 `spec validate` cobra 子命令（接收文件参数，调用 loader，调用 validator，按 contracts/cli-commands.md 输出结果）——依赖 T007、T012、T013
-- [ ] T015 [US1] 在 `cmd/fridaforge/spec.go` 中实现 `spec` 父 cobra 命令（含 `--help`）——依赖 T007
+- [x] T012 [US1] 在 `pkg/config/loader.go` 中实现 YAML 文件加载函数 `LoadSpec(path string) (*spec.HookSpec, error)`——依赖 T005、T006
+- [x] T013 [US1] 在 `pkg/config/validator.go` 中实现 HookSpec 校验函数 `Validate(spec *spec.HookSpec) error`（含结构化字段错误）——依赖 T005、T006
+- [x] T014 [US1] 在 `cmd/fridaforge/spec.go` 中实现 `spec validate` cobra 子命令（接收文件参数，调用 loader，调用 validator，按 contracts/cli-commands.md 输出结果）——依赖 T007、T012、T013
+- [x] T015 [US1] 在 `cmd/fridaforge/spec.go` 中实现 `spec` 父 cobra 命令（含 `--help`）——依赖 T007
 
 **检查点**: `fridaforge spec validate <文件>` 完整可用。全部 US1 测试通过。
 
@@ -88,14 +88,14 @@ Go 标准项目布局（参见 plan.md）：
 
 > **注意：先编写测试，确保测试 FAIL 后再实现**
 
-- [ ] T016 [P] [US2] 在 `pkg/device/types_test.go` 中编写 Device 结构体的 table-driven 单元测试
-- [ ] T017 [P] [US2] 在 `pkg/device/manager_test.go` 中编写 StubDeviceLister 的 table-driven 单元测试
+- [x] T016 [P] [US2] 在 `pkg/device/types_test.go` 中编写 Device 结构体的 table-driven 单元测试
+- [x] T017 [P] [US2] 在 `pkg/device/manager_test.go` 中编写 StubDeviceLister 的 table-driven 单元测试
 
 ### 用户故事 2 的实现
 
-- [ ] T018 [US2] 在 `pkg/device/types.go` 中定义 Device 结构体——依赖 T005（共享模式）
-- [ ] T019 [US2] 在 `pkg/device/manager.go` 中定义 DeviceLister 接口 + StubDeviceLister 桩实现——依赖 T018
-- [ ] T020 [US2] 在 `cmd/fridaforge/device.go` 中实现 `device list` cobra 子命令（调用 DeviceLister.ListDevices，按 contracts/cli-commands.md 格式化输出）——依赖 T007、T019
+- [x] T018 [US2] 在 `pkg/device/types.go` 中定义 Device 结构体——依赖 T005（共享模式）
+- [x] T019 [US2] 在 `pkg/device/manager.go` 中定义 DeviceLister 接口 + StubDeviceLister 桩实现——依赖 T018
+- [x] T020 [US2] 在 `cmd/fridaforge/device.go` 中实现 `device list` cobra 子命令（调用 DeviceLister.ListDevices，按 contracts/cli-commands.md 格式化输出）——依赖 T007、T019
 
 **检查点**: `fridaforge device list` 完整可用（桩实现）。全部 US2 测试通过。
 
@@ -111,11 +111,11 @@ Go 标准项目布局（参见 plan.md）：
 
 ### 用户故事 3 的测试 ⚠️
 
-- [ ] T021 [P] [US3] 在 `pkg/config/loader_test.go` 中编写 `config.LoadSpec` 集成测试——解析 YAML 并断言全部字段值
+- [x] T021 [P] [US3] 在 `pkg/config/loader_test.go` 中编写 `config.LoadSpec` 集成测试——解析 YAML 并断言全部字段值
 
 ### 用户故事 3 的实现
 
-- [ ] T022 [US3] 在 `pkg/config/loader.go` 中将 `config.LoadSpec` 完善为导出的公共 API（含 Go doc 注释）——依赖 T012
+- [x] T022 [US3] 在 `pkg/config/loader.go` 中将 `config.LoadSpec` 完善为导出的公共 API（含 Go doc 注释）——依赖 T012
 
 **检查点**: `config.LoadSpec` 是已文档化、可测试的公共 API，可供下游消费。
 
@@ -125,10 +125,10 @@ Go 标准项目布局（参见 plan.md）：
 
 **目标**: 质量关卡、文档和最终验证
 
-- [ ] T023 运行 `gofmt -d ./...`、`go vet ./...`、`golangci-lint run ./...`——修复全部告警
-- [ ] T024 运行 `go test -cover ./...` 并验证所有包覆盖率 ≥ 80%
-- [ ] T025 [P] 为 `pkg/` 下所有导出类型、函数和方法添加 Go doc 注释
-- [ ] T026 验证 quickstart.md 流程：`go build ./cmd/fridaforge/`、`./fridaforge --help`、`./fridaforge spec validate testdata/valid.yaml`、`./fridaforge device list`
+- [x] T023 运行 `gofmt -d ./...`、`go vet ./...`、`golangci-lint run ./...`——修复全部告警
+- [x] T024 运行 `go test -cover ./...` 并验证所有包覆盖率 ≥ 80%
+- [x] T025 [P] 为 `pkg/` 下所有导出类型、函数和方法添加 Go doc 注释
+- [x] T026 验证 quickstart.md 流程：`go build ./cmd/fridaforge/`、`./fridaforge --help`、`./fridaforge spec validate testdata/valid.yaml`、`./fridaforge device list`
 
 ---
 

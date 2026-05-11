@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-fridaforge-cli`  
 **Created**: 2026-05-09  
-**Status**: Draft  
+**Status**: Done  
 **Input**: User description: "构建 FridaForge 的 CLI 命令行工具。支持用户通过 YAML 配置文件声明 Frida Hook 目标（要 Hook 的应用包名、类名、方法名、Hook 类型），并解析为内存中的结构体。CLI 至少支持两个子命令：`fridaforge device list` 列出连接的设备，`fridaforge spec validate <文件>` 校验配置文件的合法性。"
 
 ## Clarifications
