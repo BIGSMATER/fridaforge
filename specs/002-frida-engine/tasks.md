@@ -47,10 +47,10 @@
 
 ### 实现
 
-- [ ] T007 [US1] 实现 `FridaDeviceLister` 结构体（包装 `frida.DeviceManager`，过滤 Local 设备，DeviceType→ConnectType 映射）在 `pkg/fridaengine/device.go`
-- [ ] T008 [US1] 实现 `FridaDeviceLister.ListDevices()` 方法，支持 `context.Context` 在 `pkg/fridaengine/device.go`
-- [ ] T009 [US1] 添加编译时接口检查: `var _ device.DeviceLister = (*FridaDeviceLister)(nil)` 在 `pkg/fridaengine/device.go`
-- [ ] T010 [US1] 编写 `FridaDeviceLister` 的 table-driven 测试在 `pkg/fridaengine/device_test.go`
+- [x] T007 [US1] 实现 `FridaDeviceLister` 结构体（包装 `frida.DeviceManager`，过滤 Local 设备，DeviceType→ConnectType 映射）在 `pkg/fridaengine/device.go`
+- [x] T008 [US1] 实现 `FridaDeviceLister.ListDevices()` 方法，支持 `context.Context` 在 `pkg/fridaengine/device.go`
+- [x] T009 [US1] 添加编译时接口检查: `var _ device.DeviceLister = (*FridaDeviceLister)(nil)` 在 `pkg/fridaengine/device.go`
+- [x] T010 [US1] 编写 `FridaDeviceLister` 的 table-driven 测试在 `pkg/fridaengine/device_test.go`
 
 **检查点**: `FridaDeviceLister` 独立可用，可替换 M1 桩实现
 
