@@ -78,65 +78,235 @@ func main() {
 
 ### 1.3 context.Context — 超时、取消、值传递
 
-`context.Context` 是 Go 中 goroutine 生命周期管理的**标准方式**。它像一棵倒挂的树：根 context 通过 `WithCancel` / `WithTimeout` / `WithDeadline` 派生子 context，取消父节点会级联取消所有子节点。
+#### 1.3.1 为什么需要 context？—— 没有 context 的世界
+
+想象你写了一个函数去连接远程设备：
 
 ```go
-package main
-
-import (
-    "context"
-    "fmt"
-    "time"
-)
-
-func doWork(ctx context.Context) error {
-    select {
-    case <-time.After(2 * time.Second):
-        fmt.Println("工作完成")
-        return nil
-    case <-ctx.Done():           // ctx 被取消时这个 channel 关闭
-        return ctx.Err()         // context.Canceled 或 context.DeadlineExceeded
+func connectToDevice(ip string) error {
+    conn, err := net.Dial("tcp", ip+":27042")  // 连接 frida-server
+    if err != nil {
+        return err
     }
-}
-
-func main() {
-    ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-    defer cancel()               // 避免资源泄漏——即使任务完成也要调用 cancel
-
-    err := doWork(ctx)
-    fmt.Println(err)             // context.DeadlineExceeded —— 1 秒超时 < 2 秒工作
+    // ...
 }
 ```
 
-**M2 中的用法**：
-- `Engine.Attach(ctx, deviceID, target)` 接受 ctx，默认 30 秒超时
-- `SessionManager` 为每个 Attach goroutine 创建子 context（`ctx, cancel := context.WithTimeout(parentCtx, 30*time.Second)`）
-- Session 断开时调用 `cancel()`
-
-**项目实际代码** (`pkg/fridaengine/device.go:38-48`):
+**问题来了**：如果 `net.Dial` 因为网络故障永远不返回怎么办？你的程序就永远卡在这里——这叫 **goroutine 泄漏**。你肯定想加个超时：
 
 ```go
-// ListDevices 通过 goroutine + select 将 CGO 阻塞调用接入 context
+func connectToDevice(ip string, timeout time.Duration) error { ... }
+```
+
+好，超时有了。但接下来还有新需求：
+- 用户按了 Ctrl+C → 需要立即取消所有正在进行中的连接
+- HTTP 请求的客户端断开 → 后端应该停止处理
+- 父任务失败 → 所有子任务都应该停止
+
+**这就是 context 要解决的问题：在 goroutine 之间传播取消信号、超时和请求范围的值。**
+
+#### 1.3.2 核心心智模型：一棵倒挂的树
+
+```
+                context.Background()  ← 根（永不取消）
+                     │
+          ┌──────────┼──────────┐
+          │          │          │
+     WithTimeout  WithCancel  WithValue
+      (30s 超时)   (手动取消)   (携带 userID)
+          │          │
+     ┌────┴────┐     │
+     │         │     │
+   goroutine-A  goroutine-B  goroutine-C
+```
+
+**关键规则**：
+1. **取消向下传播** — 取消父 context → 所有子 context 自动取消
+2. **取消不向上传播** — 子 context 取消不影响父 context
+3. **context 不可变** — 每次 `With*` 返回新 context，原 context 不变
+
+#### 1.3.3 四个构造函数
+
+**`context.Background()`** — 一切的根，永远不会被取消，没有超时，没有值。main goroutine 应该用这个。
+
+**`context.WithCancel()`** — 手动控制取消：
+
+```go
+ctx, cancel := context.WithCancel(context.Background())
+
+go func() {
+    select {
+    case <-ctx.Done():          // ctx 被取消时，这个 channel 会关闭
+        fmt.Println("被取消了")
+        return
+    }
+}()
+
+cancel()  // 我决定取消 —— 所有监听 ctx.Done() 的 goroutine 都会收到信号
+```
+
+类比：就像公司广播——老板按一下按钮（`cancel()`），所有人同时听到（`ctx.Done()` channel 关闭）。
+
+```go
+// 更真实的例子：启动多个 worker，一个出错全部取消
+ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
+
+for _, worker := range workers {
+    go func(w Worker) {
+        err := w.Do(ctx)   // 每个 worker 都监听同一个 ctx
+        if err != nil {
+            cancel()       // 任何 worker 出错 → 取消所有其他 worker
+        }
+    }(worker)
+}
+```
+
+**`context.WithTimeout()`** — 倒计时自动取消：
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()  // 重要！即使超时前完成也要调用 cancel，释放 timer 资源
+
+select {
+case <-ctx.Done():
+    fmt.Println(ctx.Err())  // context.DeadlineExceeded
+case result := <-doWork():
+    fmt.Println(result)
+}
+```
+
+底层实现：`WithTimeout` 等价于 `WithDeadline(time.Now().Add(timeout))`。Go 内部启动一个 timer goroutine，到期后自动调用 cancel。
+
+**为什么总是 `defer cancel()`？** 即使任务在超时前完成，timer 还活着——`defer cancel()` 确保 timer 被停止，避免 goroutine 泄漏。
+
+**`context.WithValue()`** — 携带请求范围的值（⚠️ 慎用）：
+
+```go
+type contextKey string
+const userIDKey contextKey = "userID"
+
+ctx := context.WithValue(context.Background(), userIDKey, "user-123")
+
+// 在深层函数中取回
+func handleRequest(ctx context.Context) {
+    userID, ok := ctx.Value(userIDKey).(string)  // 返回 interface{}，需要类型断言
+    if !ok {
+        return
+    }
+    fmt.Println("处理用户:", userID)
+}
+```
+
+context.Value 的类型安全很差，只适合携带请求范围的元数据（trace ID, request ID），**不要把业务数据塞进 context**。
+
+#### 1.3.4 `ctx.Done()` — 核心机制
+
+`ctx.Done()` 返回一个 **只读 channel**（`<-chan struct{}`）。当 context 被取消或超时，这个 channel 会被**关闭**。
+
+```go
+// 错误用法 ❌
+if ctx.Done() == nil { ... }  // Done() 返回 channel 本身，不是 bool
+
+// 正确用法 ✅
+select {
+case <-ctx.Done():           // channel 关闭 → 立即收到零值
+    return ctx.Err()         // 返回取消原因
+default:
+    // 还没取消，继续工作
+}
+```
+
+**为什么是 channel 关闭而不是发送值？** 因为一个 context 可能被数万个 goroutine 监听——关闭 channel 会**同时唤醒所有**监听者（Go channel 的广播语义），而发送值只能唤醒一个。
+
+#### 1.3.5 `ctx.Err()` — 区分取消原因
+
+```go
+select {
+case <-ctx.Done():
+    err := ctx.Err()
+    if errors.Is(err, context.Canceled) {
+        // 手动 cancel() 触发的
+    }
+    if errors.Is(err, context.DeadlineExceeded) {
+        // 超时触发的
+    }
+}
+```
+
+#### 1.3.6 项目核心模式：goroutine + select 包装阻塞调用
+
+这是 FridaForge `device.go` 中使用的模式——Go 处理 CGO/网络 IO 超时的**标准套路**：
+
+```go
+func blockingCallWithContext(ctx context.Context) (result, error) {
+    done := make(chan struct{})
+    var res resultType
+    var callErr error
+
+    go func() {
+        defer close(done)
+        res, callErr = SomeBlockingCOrNetworkCall()  // CGO 或 网络 IO
+    }()
+
+    select {
+    case <-ctx.Done():
+        return nil, ctx.Err()   // 超时 → 返回错误
+    case <-done:
+        // 正常完成 → 注意：goroutine 可能还在后台残留
+    }
+    return res, callErr
+}
+```
+
+**为什么用 `done` channel 而不是 WaitGroup？** WaitGroup 用于追踪多个 goroutine，而这里只需要等待一个结果——用 channel 更轻量。
+
+**局限性**：如果 `SomeBlockingCall` 是纯 C 调用（没有超时机制），即使 ctx 取消，C 调用仍在执行，直到它自己返回。Go 的 context 取消**不能强行终止 C 函数**——这是 CGO 的固有限制。frida-go 的 `EnumerateDevices()` 内部有超时机制，所以可以接受。
+
+#### 1.3.7 项目实际代码
+
+```go
+// pkg/fridaengine/device.go — 你写的代码
 func (l *FridaDeviceLister) ListDevices(ctx context.Context) ([]device.Device, error) {
     done := make(chan struct{})
     var fridaDevices []frida.DeviceInt
     var enumerateErr error
 
     go func() {
-        defer close(done)
-        fridaDevices, enumerateErr = l.mgr.EnumerateDevices() // ⚠️ CGO 阻塞调用
+        defer close(done)                              // 3. goroutine 完成 → 关闭 done channel
+        fridaDevices, enumerateErr = l.mgr.EnumerateDevices()  // 1. CGO 阻塞调用
     }()
 
     select {
-    case <-ctx.Done():
-        return nil, fmt.Errorf("device enumerate: %w", ctx.Err())  // 超时/取消
-    case <-done:  // 枚举完成
+    case <-ctx.Done():                                 // 4a. 调用者取消了 → 返回超时错误
+        return nil, fmt.Errorf("device enumerate: %w", ctx.Err())
+    case <-done:                                       // 4b. 枚举完成 → 处理结果
     }
     // ...
 }
 ```
 
-**关键模式**：`EnumerateDevices()` 是 CGO 同步调用（不像 Go 标准库那样原生支持 context）。我们用 goroutine+channel 包装它——goroutine 中执行阻塞调用，select 同时监听 ctx.Done() 和完成信号。这正是 Go 处理 C 库调用超时的标准套路。
+**执行流程**：
+1. 主 goroutine 启动一个子 goroutine 去执行 `EnumerateDevices()`（CGO 阻塞调用）
+2. 主 goroutine 用 `select` 同时等待两个信号：
+   - `ctx.Done()`：调用者说"不等了"（超时或手动取消）
+   - `done`：子 goroutine 说"我完成了"
+3. 无论谁先到，另一个就不等了
+
+**常见错误** ❌：
+```go
+// 错误：忘记 defer cancel() —— timer 泄漏
+ctx, _ := context.WithTimeout(parent, 30*time.Second)
+
+// 错误：把 context 存到 struct 里
+type MyStruct struct {
+    ctx context.Context  // 不要这样！context 应该作为函数第一个参数传递
+}
+```
+
+#### 1.3.8 一句话总结
+
+> **context 是 Go 的"取消信号传播树"**。它不杀人（不能强行终止 goroutine），它只是发信号——收到信号的 goroutine 应该自觉返回。真正的取消工作由 goroutine 自己在 `case <-ctx.Done()` 里做。
 
 ### 1.4 sync.Mutex — 保护共享数据
 
