@@ -19,8 +19,8 @@
 
 **目标**: 添加 frida-go 依赖，创建包目录结构
 
-- [ ] T001 添加 frida-go 依赖: `go get github.com/frida/frida-go/frida@latest`
-- [ ] T002 创建 `pkg/fridaengine/` 包目录
+- [x] T001 添加 frida-go 依赖: `go get github.com/frida/frida-go/frida@latest`
+- [x] T002 创建 `pkg/fridaengine/` 包目录
 
 ---
 
@@ -30,10 +30,10 @@
 
 **⚠️ 关键**: 此阶段未完成前，任何用户故事不得启动
 
-- [ ] T003 [P] 定义三类错误类型 (DeviceError, SessionError, ScriptError) 在 `pkg/fridaengine/errors.go`
-- [ ] T004 [P] 定义会话相关类型 (SessionState 枚举, HookMessage 结构体, ProcessInfo) 在 `pkg/fridaengine/session.go`
-- [ ] T005 [P] 编写错误类型的 table-driven 测试在 `pkg/fridaengine/errors_test.go`
-- [ ] T006 编写会话类型的测试在 `pkg/fridaengine/session_test.go`
+- [x] T003 [P] 定义三类错误类型 (DeviceError, SessionError, ScriptError) 在 `pkg/fridaengine/errors.go`
+- [x] T004 [P] 定义会话相关类型 (SessionState 枚举, HookMessage 结构体, ProcessInfo) 在 `pkg/fridaengine/session.go`
+- [x] T005 [P] 编写错误类型的 table-driven 测试在 `pkg/fridaengine/errors_test.go`
+- [x] T006 编写会话类型的测试在 `pkg/fridaengine/session_test.go`
 
 **检查点**: 基础就绪——用户故事可以开始实现
 

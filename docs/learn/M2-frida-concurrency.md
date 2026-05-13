@@ -238,6 +238,70 @@ func NewService(log Logger) *Service {
 
 **M2 中的用法**：`Engine` 接受 `device.DeviceLister`（M1 定义的接口）和 `*slog.Logger`（标准库 log 接口）。测试时注入 stub，生产时注入真实 Frida 实现。
 
+### 1.7 自定义错误类型 — `error` 接口 + `Unwrap()`
+
+Go 的 `error` 接口只有一个方法 `Error() string`。自定义错误类型只需实现它。加上 `Unwrap() error` 方法后，`errors.Is()` 和 `errors.As()` 就能逐层解包错误链。
+
+```go
+type DeviceError struct {
+    Op  string
+    ID  string
+    Err error // 包装底层错误
+}
+func (e *DeviceError) Error() string { return "device " + e.Op + ": " + e.Err.Error() }
+func (e *DeviceError) Unwrap() error { return e.Err }
+```
+
+**项目实际代码** (`pkg/fridaengine/errors.go`):
+
+```go
+// 三层错误类型，对应 Frida 调用链的三个层级
+type DeviceError struct  { Op, ID string; Err error }  // 设备枚举/连接失败
+type SessionError struct { Op, Target string; Err error } // Attach/Detach 失败
+type ScriptError struct  { Op string; Err error }       // 脚本创建/加载失败
+
+// 每个类型都实现 Error() 和 Unwrap()，支持:
+// errors.Is(err, rootCause) — 判断错误链中是否包含特定错误
+// errors.As(err, &sessionErr) — 从错误链中提取特定类型错误
+```
+
+**关键理解**: `Unwrap()` 是 Go 1.13 引入的接口方法，标准库的 `errors.Is` / `errors.As` 依赖它遍历错误链。不实现 `Unwrap()`，错误包装就只是字符串拼接——丢掉了类型信息。
+
+### 1.8 Go enum — `iota` 常量生成器
+
+```go
+type SessionState int
+const (
+    SessionStateCreated  SessionState = iota // 0
+    SessionStateReady                        // 1
+    SessionStateDetached                     // 2
+)
+```
+
+`iota` 在 const 块中从 0 开始，每行 +1。Go 没有真正的 enum 关键字，`type X int` + `iota` 是惯用模式，提供编译时类型安全。
+
+**项目实际代码** (`pkg/fridaengine/session.go`):
+
+```go
+type SessionState int
+const (
+    SessionStateCreated  SessionState = iota // Attach 成功，尚未加载脚本
+    SessionStateReady                        // 脚本已加载，可收发消息
+    SessionStateDetached                     // 已断开
+)
+
+func (s SessionState) String() string {
+    switch s {
+    case SessionStateCreated: return "created"
+    case SessionStateReady:   return "ready"
+    case SessionStateDetached:return "detached"
+    default:                  return "unknown"
+    }
+}
+```
+
+**为什么用 `iota` 而不用 string enum？** M1 的 `HookType` 用 `type HookType string` + `const HookTypeOverload HookType = "overload"`——那是字符串枚举，方便 YAML 反序列化。这里用 int 枚举，因为 `SessionState` 只在 Go 内部流转，不需要字符串序列化，int 比 string 比较更快（== 是单条 CPU 指令）。
+
 ---
 
 ## 二、Android 逆向轨道：Frida 完整生命周期
