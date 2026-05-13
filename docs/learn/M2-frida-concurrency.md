@@ -113,6 +113,31 @@ func main() {
 - `SessionManager` 为每个 Attach goroutine 创建子 context（`ctx, cancel := context.WithTimeout(parentCtx, 30*time.Second)`）
 - Session 断开时调用 `cancel()`
 
+**项目实际代码** (`pkg/fridaengine/device.go:38-48`):
+
+```go
+// ListDevices 通过 goroutine + select 将 CGO 阻塞调用接入 context
+func (l *FridaDeviceLister) ListDevices(ctx context.Context) ([]device.Device, error) {
+    done := make(chan struct{})
+    var fridaDevices []frida.DeviceInt
+    var enumerateErr error
+
+    go func() {
+        defer close(done)
+        fridaDevices, enumerateErr = l.mgr.EnumerateDevices() // ⚠️ CGO 阻塞调用
+    }()
+
+    select {
+    case <-ctx.Done():
+        return nil, fmt.Errorf("device enumerate: %w", ctx.Err())  // 超时/取消
+    case <-done:  // 枚举完成
+    }
+    // ...
+}
+```
+
+**关键模式**：`EnumerateDevices()` 是 CGO 同步调用（不像 Go 标准库那样原生支持 context）。我们用 goroutine+channel 包装它——goroutine 中执行阻塞调用，select 同时监听 ctx.Done() 和完成信号。这正是 Go 处理 C 库调用超时的标准套路。
+
 ### 1.4 sync.Mutex — 保护共享数据
 
 多个 goroutine 同时读写同一个变量会导致 **data race**（数据竞争）。`sync.Mutex` 提供互斥锁保护：
@@ -364,6 +389,7 @@ session.detach();
 ```
 
 **M2 中 frida-go 的对应调用**：
+
 ```go
 mgr := frida.NewDeviceManager()
 devices, _ := mgr.EnumerateDevices()       // Step 1
@@ -377,6 +403,56 @@ script.On("message", handler)                       // Step 5
 script.Load()                                       // Step 6
 
 session.Detach()                                    // Step 7
+```
+
+**项目实际代码** (`pkg/fridaengine/device.go`) — 设备枚举的完整实现：
+
+```go
+type FridaDeviceLister struct {
+    mgr    *frida.DeviceManager
+    logger *slog.Logger
+}
+
+func (l *FridaDeviceLister) ListDevices(ctx context.Context) ([]device.Device, error) {
+    // 1. goroutine 中执行 CGO 调用（阻塞操作）
+    done := make(chan struct{})
+    var fridaDevices []frida.DeviceInt
+    var enumerateErr error
+    go func() {
+        defer close(done)
+        fridaDevices, enumerateErr = l.mgr.EnumerateDevices()
+    }()
+    // 2. select 等待结果或超时
+    select {
+    case <-ctx.Done():
+        return nil, fmt.Errorf("device enumerate: %w", ctx.Err())
+    case <-done:
+    }
+    if enumerateErr != nil {
+        return nil, NewDeviceError("enumerate", "", enumerateErr)
+    }
+    // 3. 过滤 Local 设备 + 映射类型
+    var result []device.Device
+    for _, d := range fridaDevices {
+        connectType := fridaDeviceTypeToConnectType(d.DeviceType())
+        if connectType == "" { // Local 设备 → 跳过
+            continue
+        }
+        result = append(result, device.Device{
+            ID: d.ID(), Name: d.Name(), ConnectType: connectType,
+        })
+    }
+    return result, nil
+}
+
+// DeviceType 枚举 → M1 ConnectType 映射
+func fridaDeviceTypeToConnectType(dt frida.DeviceType) device.ConnectType {
+    switch dt {
+    case frida.DeviceTypeRemote: return device.ConnectTypeNetwork
+    case frida.DeviceTypeUsb:    return device.ConnectTypeUSB
+    default:                     return "" // Local 设备过滤
+    }
+}
 ```
 
 ### 2.3 frida-server 部署
