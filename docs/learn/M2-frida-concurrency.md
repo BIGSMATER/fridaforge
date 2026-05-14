@@ -376,6 +376,30 @@ func (s *Session) setState(new SessionState) {
 
 **M2 中的用法**：`SessionManager.sessions` 用 `sync.Mutex` 保护（并发 Attach/Detach 时写入），`HookSession.state` 用 `sync.RWMutex` 保护（State() 高频读取，状态变更低频写入）。
 
+**项目实际代码** (`pkg/fridaengine/session.go:64-76`):
+
+```go
+type HookSession struct {
+    state   SessionState
+    mu      sync.RWMutex     // 保护 state 字段
+    // ...
+}
+
+// State() — 读锁，允许多个 goroutine 同时查询
+func (s *HookSession) State() SessionState {
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+    return s.state
+}
+
+// setState() — 写锁，独占修改
+func (s *HookSession) setState(state SessionState) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    s.state = state
+}
+```
+
 ### 1.5 channel — goroutine 间通信
 
 Go 的核心理念：**「不要通过共享内存来通信——通过通信来共享内存」**。channel 是 goroutine 之间的类型安全管道。
@@ -412,6 +436,28 @@ func main() {
 **宪法 2.4 约束**：channel 参数必须明确方向（`chan<-` 或 `<-chan`），禁止双向 channel 作为参数。
 
 **M2 中的用法**：每个 `HookSession` 创建 `chan HookMessage` (缓冲 64)，frida-go 回调写入，调用者从 `Messages() <-chan HookMessage` 读取。方向明确——回调只写入，调用者只读取。
+
+**项目实际代码** (`pkg/fridaengine/script.go:28-34` + `session.go:77-80`):
+
+```go
+// 发送端（只写 channel）：frida 回调 → channel
+func (s *HookScript) onMessage(ch chan<- HookMessage) {  // chan<- 单向写入
+    s.script.On("message", func(msg string) {
+        ch <- HookMessage{
+            Type:      "message",
+            Payload:   msg,
+            Timestamp: time.Now(),
+        }
+    })
+}
+
+// 接收端（只读 channel）：暴露给调用者消费
+func (s *HookSession) Messages() <-chan HookMessage {  // <-chan 单向读取
+    return s.msgCh
+}
+```
+
+channel 方向（`chan<-` / `<-chan`）让编译器帮你检查：如果把只写 channel 传给需要只读的函数，编译直接报错。
 
 ### 1.6 依赖注入 — 接口作为参数
 
@@ -624,6 +670,41 @@ func fridaDeviceTypeToConnectType(dt frida.DeviceType) device.ConnectType {
     }
 }
 ```
+
+**Step 3-7 的 Go 版本** — Attach + 脚本注入 + 消息接收 (`pkg/fridaengine/engine.go` + `session.go`):
+
+```go
+// Step 3: Attach 到目标进程
+session, err := engine.Attach(ctx, devices[0].ID, "com.example.app")
+if err != nil {
+    return err
+}
+defer session.Detach()  // ← Step 7 保证执行（defer + 幂等）
+
+// Step 4-6: 创建脚本 → 注册消息 → 加载
+err = session.CreateScript(`
+    Java.perform(function() {
+        var MainActivity = Java.use("com.example.MainActivity");
+        MainActivity.onCreate.implementation = function() {
+            send("onCreate called!");  // send() → frida → channel
+            this.onCreate();
+        };
+    });
+`)
+if err != nil {
+    return err
+}
+
+// Step 5-7: 接收消息（循环读取 channel，直到 Session Detach 关闭 channel）
+for msg := range session.Messages() {
+    fmt.Printf("[%s] %s\n", msg.Type, msg.Payload)
+}
+```
+
+**关键设计**：
+- `session.Detach()` 关闭 `msgCh` channel → `for range` 循环自动退出
+- `Detach()` 幂等（已 Detached 状态下调用直接返回 nil）
+- 用 `defer session.Detach()` 确保即使 panic 也会执行清理
 
 ### 2.3 frida-server 部署
 

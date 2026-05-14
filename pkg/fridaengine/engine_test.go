@@ -1,0 +1,166 @@
+package fridaengine
+
+import (
+	"context"
+	"log/slog"
+	"os"
+	"testing"
+	"time"
+)
+
+func TestNewEngine(t *testing.T) {
+	t.Run("with nil logger and nil lister", func(t *testing.T) {
+		e := NewEngine(nil, nil)
+		if e == nil {
+			t.Fatal("Engine should not be nil")
+		}
+		if e.logger == nil {
+			t.Fatal("logger should default to slog.Default()")
+		}
+		if e.lister == nil {
+			t.Fatal("lister should default to FridaDeviceLister")
+		}
+		if e.mgr == nil {
+			t.Fatal("DeviceManager should not be nil")
+		}
+	})
+
+	t.Run("with explicit logger", func(t *testing.T) {
+		logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+		e := NewEngine(nil, logger)
+		if e.logger != logger {
+			t.Error("should use provided logger")
+		}
+	})
+}
+
+func TestNewEngineWithDefaults(t *testing.T) {
+	e, err := NewEngineWithDefaults()
+	if err != nil {
+		t.Fatalf("NewEngineWithDefaults should not error: %v", err)
+	}
+	if e == nil {
+		t.Fatal("Engine should not be nil")
+	}
+}
+
+func TestEngineListDevicesDelegation(t *testing.T) {
+	e := NewEngine(nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	devices, err := e.ListDevices(ctx)
+	if err != nil {
+		t.Logf("ListDevices returned error (expected if no devices): %v", err)
+	}
+	_ = devices
+}
+
+func TestHookSessionID(t *testing.T) {
+	hs := newHookSession("test-001", "dev-1", "com.example", nil, context.Background(), slog.Default())
+	if hs.ID() != "test-001" {
+		t.Errorf("ID = %q, want %q", hs.ID(), "test-001")
+	}
+}
+
+func TestHookSessionTarget(t *testing.T) {
+	hs := newHookSession("test-001", "dev-1", "com.example", nil, context.Background(), slog.Default())
+	if hs.Target() != "com.example" {
+		t.Errorf("Target = %q, want %q", hs.Target(), "com.example")
+	}
+}
+
+func TestHookSessionInitialState(t *testing.T) {
+	hs := newHookSession("test-001", "dev-1", "com.example", nil, context.Background(), slog.Default())
+	if hs.State() != SessionStateCreated {
+		t.Errorf("initial state = %v, want %v", hs.State(), SessionStateCreated)
+	}
+}
+
+func TestHookSessionMessagesChannel(t *testing.T) {
+	hs := newHookSession("test-001", "dev-1", "com.example", nil, context.Background(), slog.Default())
+
+	msgs := hs.Messages()
+	if msgs == nil {
+		t.Fatal("Messages() should return a non-nil channel")
+	}
+
+	select {
+	case _, ok := <-msgs:
+		if ok {
+			t.Error("newly created session should not have messages in channel")
+		}
+	default:
+	}
+}
+
+func TestHookSessionCreateScriptInvalidState(t *testing.T) {
+	hs := newHookSession("test-001", "dev-1", "com.example", nil, context.Background(), slog.Default())
+
+	hs.setState(SessionStateReady)
+	err := hs.CreateScript("console.log('test');")
+	if err == nil {
+		t.Error("CreateScript should fail in Ready state")
+	}
+	if err.Error() != "fridaengine: cannot create script in state ready" {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestHookSessionDetachIdempotent(t *testing.T) {
+	hs := newHookSession("test-001", "dev-1", "com.example", nil, context.Background(), slog.Default())
+
+	hs.setState(SessionStateDetached)
+
+	err := hs.Detach()
+	if err != nil {
+		t.Errorf("Detach on already-detached session should not error: %v", err)
+	}
+}
+
+func TestHookSessionStateConcurrent(t *testing.T) {
+	hs := newHookSession("test-001", "dev-1", "com.example", nil, context.Background(), slog.Default())
+
+	done := make(chan struct{})
+	go func() {
+		for i := 0; i < 100; i++ {
+			hs.State()
+		}
+		done <- struct{}{}
+	}()
+
+	for i := 0; i < 100; i++ {
+		hs.setState(SessionStateReady)
+		hs.setState(SessionStateCreated)
+	}
+
+	<-done
+}
+
+func TestEngineAttachDeviceNotFound(t *testing.T) {
+	e := NewEngine(nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := e.Attach(ctx, "nonexistent-device-id", "com.example")
+	if err == nil {
+		t.Error("Attach to nonexistent device should return error")
+	}
+	_, ok := err.(*DeviceError)
+	if !ok {
+		t.Errorf("expected DeviceError, got %T: %v", err, err)
+	}
+}
+
+func TestEngineAttachContextTimeout(t *testing.T) {
+	e := NewEngine(nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	defer cancel()
+
+	time.Sleep(1 * time.Millisecond)
+
+	_, err := e.Attach(ctx, "some-device", "com.example")
+	if err == nil {
+		t.Error("Attach with expired context should return error")
+	}
+}

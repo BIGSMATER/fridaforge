@@ -64,12 +64,12 @@
 
 ### 实现
 
-- [ ] T011 [US2] 实现 `HookScript` 包装器（包装 `frida.Script`，处理 Load + On("message") 回调）在 `pkg/fridaengine/script.go`
+- [x] T011 [US2] 实现 `HookScript` 包装器（包装 `frida.Script`，处理 Load + On("message") 回调）在 `pkg/fridaengine/script.go`
   - 注: HookScript 为内部类型（不直接暴露导出 API）——在 T015 (engine_test.go) 中间接测试，无需独立测试文件
-- [ ] T012 [US2] 实现 `HookSession` 状态机（Created→Ready→Detached），含幂等 `Detach()`、`CreateScript()`、`Messages()`、`State()` 在 `pkg/fridaengine/session.go`
-- [ ] T013 [US2] 实现 `Engine` 结构体 (NewEngine, NewEngineWithDefaults, Attach) 在 `pkg/fridaengine/engine.go`
-- [ ] T014 [US2] 在 Engine.Attach 中接入 `context.Context`（默认 30s 超时）在 `pkg/fridaengine/engine.go`
-- [ ] T015 [US2] 编写 `HookSession` 和 `Engine.Attach` 的测试在 `pkg/fridaengine/engine_test.go`
+- [x] T012 [US2] 实现 `HookSession` 状态机（Created→Ready→Detached），含幂等 `Detach()`、`CreateScript()`、`Messages()`、`State()` 在 `pkg/fridaengine/session.go`
+- [x] T013 [US2] 实现 `Engine` 结构体 (NewEngine, NewEngineWithDefaults, Attach) 在 `pkg/fridaengine/engine.go`
+- [x] T014 [US2] 在 Engine.Attach 中接入 `context.Context`（goroutine+select 包装 CGO 调用）在 `pkg/fridaengine/engine.go`
+- [x] T015 [US2] 编写 `HookSession` 和 `Engine.Attach` 的测试在 `pkg/fridaengine/engine_test.go`
 
 **检查点**: 单 Session Attach + 脚本注入流程完整可用
 
