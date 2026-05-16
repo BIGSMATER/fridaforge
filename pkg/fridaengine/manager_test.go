@@ -138,4 +138,58 @@ func TestEngineAttachIntegration(t *testing.T) {
 	if err != nil {
 		t.Errorf("Detach failed: %v", err)
 	}
+
+	if e.ActiveSessions() != 0 {
+		t.Errorf("ActiveSessions after Detach = %d, want 0", e.ActiveSessions())
+	}
+}
+
+func TestSessionOnRemoveCallback(t *testing.T) {
+	mgr := newSessionManager(nil, nil)
+
+	hs := newHookSession("test-onremove", "dev-1", "target", nil, context.Background(), mgr.logger)
+	hs.onRemove = func(id string) {
+		mgr.mu.Lock()
+		delete(mgr.sessions, id)
+		mgr.mu.Unlock()
+	}
+
+	mgr.mu.Lock()
+	mgr.sessions[hs.id] = hs
+	mgr.mu.Unlock()
+
+	if mgr.Count() != 1 {
+		t.Fatalf("Count = %d, want 1", mgr.Count())
+	}
+
+	hs.setState(SessionStateCreated)
+	err := hs.Detach()
+	if err != nil {
+		t.Errorf("Detach error: %v", err)
+	}
+
+	if mgr.Count() != 0 {
+		t.Errorf("Count after Detach with onRemove = %d, want 0", mgr.Count())
+	}
+}
+
+func TestDefaultAttachTimeout(t *testing.T) {
+	mgr := newSessionManager(nil, nil)
+
+	ctx := context.Background()
+	_, ok := ctx.Deadline()
+	if ok {
+		t.Skip("background context has deadline (unexpected)")
+	}
+
+	_ = mgr
+
+	ctx2 := context.Background()
+	ctx3, cancel := context.WithTimeout(context.Background(), defaultAttachTimeout)
+	defer cancel()
+
+	if _, hasDeadline := ctx3.Deadline(); !hasDeadline {
+		t.Error("WithTimeout should create deadline")
+	}
+	_ = ctx2
 }

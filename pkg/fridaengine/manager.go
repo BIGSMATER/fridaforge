@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/frida/frida-go/frida"
 )
 
-const defaultSoftLimit = 64
+const (
+	defaultSoftLimit = 64
+	defaultAttachTimeout = 30 * time.Second
+)
 
 // SessionManager 管理多个并发 HookSession。
 // 提供并发控制、错误聚合和统一清理。
@@ -19,6 +23,7 @@ type SessionManager struct {
 	logger    *slog.Logger
 	softLimit int
 	mgr       *frida.DeviceManager
+	seq       int64
 }
 
 // newSessionManager 创建 SessionManager（内部使用）。
@@ -50,6 +55,12 @@ func (m *SessionManager) Attach(ctx context.Context, deviceID, target string) (*
 		m.logger.Warn("soft limit reached", "current", len(m.sessions), "limit", m.softLimit)
 	}
 	m.mu.Unlock()
+
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultAttachTimeout)
+		defer cancel()
+	}
 
 	fridaDevices, err := m.mgr.EnumerateDevices()
 	if err != nil {
@@ -91,8 +102,15 @@ func (m *SessionManager) Attach(ctx context.Context, deviceID, target string) (*
 		fridaSession = result.session
 	}
 
-	id := fmt.Sprintf("%s-%s", deviceID, target)
+	id := fmt.Sprintf("%s-%s-%d", deviceID, target, m.seq)
+	m.seq++
+
 	hookSession := newHookSession(id, deviceID, target, fridaSession, ctx, m.logger)
+	hookSession.onRemove = func(removeID string) {
+		m.mu.Lock()
+		delete(m.sessions, removeID)
+		m.mu.Unlock()
+	}
 
 	m.mu.Lock()
 	m.sessions[id] = hookSession

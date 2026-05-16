@@ -63,6 +63,7 @@ type HookSession struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	logger   *slog.Logger
+	onRemove func(id string) // SessionManager 回调：Detach 时从 sessions map 移除
 }
 
 // newHookSession 创建 HookSession（内部使用，由 Engine.Attach 调用）。
@@ -113,6 +114,9 @@ func (s *HookSession) CreateScript(jsSource string) error {
 	if s.state != SessionStateCreated {
 		return fmt.Errorf("fridaengine: cannot create script in state %s", s.state)
 	}
+	if s.session == nil {
+		return fmt.Errorf("fridaengine: no active frida session")
+	}
 
 	var err error
 	s.script, err = createScript(s.session, jsSource)
@@ -158,12 +162,18 @@ func (s *HookSession) Detach() error {
 		}
 	}
 
-	if err := s.session.Detach(); err != nil {
-		errs = append(errs, NewSessionError("detach", s.target, err))
+	if s.session != nil {
+		if err := s.session.Detach(); err != nil {
+			errs = append(errs, NewSessionError("detach", s.target, err))
+		}
 	}
 
 	s.state = SessionStateDetached
 	s.logger.Info("session detached", "sessionID", s.id, "target", s.target)
+
+	if s.onRemove != nil {
+		s.onRemove(s.id)
+	}
 
 	if len(errs) > 0 {
 		return errs[0]
