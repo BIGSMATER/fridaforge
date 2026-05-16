@@ -26,5 +26,8 @@ vendor/
 # Opencode agent folder
 .opencode/
 
+# Frida devkit (387MB binary, not for git)
+.devkit/
+
 # Test artifacts
 tests/harness/**/*.apk
