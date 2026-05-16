@@ -2,7 +2,7 @@
 
 > 本文档记录项目从 M0 到 M7 的完整里程碑路线图。每个 Milestone 的执行严格遵循 SpecKit 工作流。
 
-## 当前状态：M2 规划中 — Frida 并发调度引擎 (pkg/fridaengine)
+## 当前状态：M2 完成 → 准备进入 M3
 
 ---
 

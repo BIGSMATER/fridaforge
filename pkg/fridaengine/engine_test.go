@@ -240,3 +240,44 @@ func TestEngineEnumerateApplications(t *testing.T) {
 	}
 	t.Skip("no reachable device found for application enumeration")
 }
+
+func TestHookSessionDetachWithStateTransition(t *testing.T) {
+	hs := newHookSession("test-101", "dev-1", "com.example", nil, context.Background(), slog.Default())
+
+	hs.setState(SessionStateCreated)
+	if hs.State() != SessionStateCreated {
+		t.Error("expected created state")
+	}
+
+	hs.setState(SessionStateDetached)
+	if hs.State() != SessionStateDetached {
+		t.Error("expected detached state")
+	}
+
+	err := hs.Detach()
+	if err != nil {
+		t.Errorf("Detach on detached session should be idempotent: %v", err)
+	}
+}
+
+func TestHookSessionCreateScriptDetachedState(t *testing.T) {
+	hs := newHookSession("test-102", "dev-1", "com.example", nil, context.Background(), slog.Default())
+	hs.setState(SessionStateDetached)
+
+	err := hs.CreateScript("console.log('test');")
+	if err == nil {
+		t.Error("CreateScript should fail in Detached state")
+	}
+}
+
+func TestSessionManagerDetachAllEmpty(t *testing.T) {
+	mgr := newSessionManager(nil, nil)
+
+	err := mgr.DetachAll()
+	if err != nil {
+		t.Errorf("DetachAll on empty manager should not error: %v", err)
+	}
+	if mgr.Count() != 0 {
+		t.Errorf("Count should still be 0, got %d", mgr.Count())
+	}
+}
