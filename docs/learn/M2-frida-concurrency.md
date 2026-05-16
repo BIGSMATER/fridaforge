@@ -981,6 +981,48 @@ Frida 支持两种 Attach 目标指定方式：
 - **按 PID**：`device.attach(12345)` → 直接 Attach
 - **M2 策略**：优先按包名（符合 HookSpec 的 `app_package` 语义），也支持 PID
 
+### 2.6 Frida Scope — 进程枚举的范围控制
+
+`EnumerateProcesses` 和 `EnumerateApplications` 接受一个 `Scope` 参数，控制返回范围：
+
+```go
+type Scope int
+const (
+    ScopeMinimal Scope = iota  // 仅当前用户可见的进程
+    ScopeMetadata              // 返回元数据（图标、版本等）
+    ScopeFull                  // 所有进程 + 完整信息
+)
+```
+
+| Scope | 返回内容 | 性能 | 用途 |
+|-------|---------|------|------|
+| `ScopeMinimal` | 仅 PID + Name | 最快 | 按名查进程、Attach 前确认 |
+| `ScopeFull` | PID + Name + 图标/参数等 | 较慢 | 展示设备完整进程列表 |
+
+**项目实际代码** (`pkg/fridaengine/engine.go:92-114`):
+
+```go
+func (e *Engine) EnumerateProcesses(ctx context.Context, deviceID string) ([]ProcessInfo, error) {
+    dev, err := e.findDevice(ctx, deviceID)
+    // ...
+
+    go func() {
+        fridaProcs, ferr := dev.EnumerateProcesses(frida.ScopeFull)  // 完整列表
+        // 映射 frida.Process → ProcessInfo
+        procs := make([]ProcessInfo, len(fridaProcs))
+        for i, p := range fridaProcs {
+            procs[i] = ProcessInfo{PID: p.PID(), Name: p.Name()}
+        }
+        done <- result{processes: procs}
+    }()
+    // select ctx.Done() / done ...
+}
+```
+
+**设计选择**：M2 统一用 `ScopeFull`——虽然比 `ScopeMinimal` 慢一点，但用户枚举进程时通常需要完整列表，半截子数据反而困惑。以后可以加参数让用户选择。
+
+**Go 模式**：`findDevice()` 是私有 helper——三个方法（Attach/EnumerateProcesses/EnumerateApplications）都需要根据 deviceID 找 frida 设备，抽出来避免重复代码。
+
 ---
 
 ## 三、AI 编程轨道：SpecKit 第二次迭代
