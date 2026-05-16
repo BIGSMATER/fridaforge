@@ -102,9 +102,9 @@
 
 ### 实现
 
-- [ ] T022 [P] [US5] 实现 `Engine.EnumerateProcesses()` 在 `pkg/fridaengine/engine.go`
-- [ ] T023 [P] [US5] 实现 `Engine.EnumerateApplications()` 在 `pkg/fridaengine/engine.go`
-- [ ] T024 [US5] 编写进程枚举的测试（追加到 `pkg/fridaengine/device_test.go`）
+- [x] T022 [P] [US5] 实现 `Engine.EnumerateProcesses()` 在 `pkg/fridaengine/engine.go`
+- [x] T023 [P] [US5] 实现 `Engine.EnumerateApplications()` 在 `pkg/fridaengine/engine.go`
+- [x] T024 [US5] 编写进程枚举的测试（追加到 `pkg/fridaengine/engine_test.go`）
 
 **检查点**: 所有 5 个用户故事独立可用
 

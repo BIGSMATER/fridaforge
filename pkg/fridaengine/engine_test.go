@@ -167,3 +167,76 @@ func TestEngineAttachContextTimeout(t *testing.T) {
 		t.Error("Attach with expired context should return error")
 	}
 }
+
+func TestEngineEnumerateProcesses(t *testing.T) {
+	e := NewEngine(nil, nil)
+	defer e.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	devices, err := e.ListDevices(ctx)
+	if err != nil {
+		t.Skipf("no devices available: %v", err)
+	}
+	if len(devices) == 0 {
+		t.Skip("no devices available")
+	}
+
+	for _, dev := range devices {
+		procs, err := e.EnumerateProcesses(ctx, dev.ID)
+		if err != nil {
+			t.Logf("skipping %s (%s): %v", dev.ID, dev.Name, err)
+			continue
+		}
+		if len(procs) == 0 {
+			t.Error("expected at least one process")
+		}
+		t.Logf("found %d processes on %s (%s)", len(procs), dev.Name, dev.ID)
+		return
+	}
+	t.Skip("no reachable device found for process enumeration")
+}
+
+func TestEngineEnumerateProcessesDeviceNotFound(t *testing.T) {
+	e := NewEngine(nil, nil)
+	defer e.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := e.EnumerateProcesses(ctx, "nonexistent-device-id")
+	if err == nil {
+		t.Error("expected error for nonexistent device")
+	}
+}
+
+func TestEngineEnumerateApplications(t *testing.T) {
+	e := NewEngine(nil, nil)
+	defer e.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	devices, err := e.ListDevices(ctx)
+	if err != nil {
+		t.Skipf("no devices available: %v", err)
+	}
+	if len(devices) == 0 {
+		t.Skip("no devices available")
+	}
+
+	for _, dev := range devices {
+		apps, err := e.EnumerateApplications(ctx, dev.ID)
+		if err != nil {
+			t.Logf("skipping %s (%s): %v", dev.ID, dev.Name, err)
+			continue
+		}
+		if len(apps) == 0 {
+			t.Error("expected at least one application")
+		}
+		t.Logf("found %d applications on %s (%s)", len(apps), dev.Name, dev.ID)
+		return
+	}
+	t.Skip("no reachable device found for application enumeration")
+}

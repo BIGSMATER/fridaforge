@@ -2,6 +2,7 @@ package fridaengine
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/bigsmater/fridaforge/pkg/device"
@@ -61,4 +62,94 @@ func (e *Engine) Close() error {
 // ActiveSessions 返回当前活跃 Session 数量。
 func (e *Engine) ActiveSessions() int {
 	return e.manager.Count()
+}
+
+// findDevice 根据 deviceID 查找对应的 frida 设备接口。
+func (e *Engine) findDevice(ctx context.Context, deviceID string) (frida.DeviceInt, error) {
+	fridaDevices, err := e.manager.mgr.EnumerateDevices()
+	if err != nil {
+		return nil, NewDeviceError("enumerate", deviceID, err)
+	}
+	for _, d := range fridaDevices {
+		if d.ID() == deviceID {
+			return d, nil
+		}
+	}
+	return nil, NewDeviceError("find", deviceID, fmt.Errorf("device not found"))
+}
+
+// EnumerateProcesses 枚举指定设备上的运行进程。
+func (e *Engine) EnumerateProcesses(ctx context.Context, deviceID string) ([]ProcessInfo, error) {
+	dev, err := e.findDevice(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	type result struct {
+		processes []ProcessInfo
+		err       error
+	}
+	done := make(chan result, 1)
+
+	go func() {
+		fridaProcs, ferr := dev.EnumerateProcesses(frida.ScopeFull)
+		if ferr != nil {
+			done <- result{err: ferr}
+			return
+		}
+		procs := make([]ProcessInfo, len(fridaProcs))
+		for i, p := range fridaProcs {
+			procs[i] = ProcessInfo{PID: p.PID(), Name: p.Name()}
+		}
+		done <- result{processes: procs}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, NewDeviceError("enumerate_processes", deviceID, ctx.Err())
+	case r := <-done:
+		if r.err != nil {
+			return nil, NewDeviceError("enumerate_processes", deviceID, r.err)
+		}
+		e.logger.Info("processes enumerated", "deviceID", deviceID, "count", len(r.processes))
+		return r.processes, nil
+	}
+}
+
+// EnumerateApplications 枚举指定设备上的已安装应用。
+func (e *Engine) EnumerateApplications(ctx context.Context, deviceID string) ([]ProcessInfo, error) {
+	dev, err := e.findDevice(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	type result struct {
+		apps []ProcessInfo
+		err  error
+	}
+	done := make(chan result, 1)
+
+	go func() {
+		fridaApps, ferr := dev.EnumerateApplications("", frida.ScopeFull)
+		if ferr != nil {
+			done <- result{err: ferr}
+			return
+		}
+		apps := make([]ProcessInfo, len(fridaApps))
+		for i, a := range fridaApps {
+			apps[i] = ProcessInfo{PID: a.PID(), Name: a.Name()}
+		}
+		done <- result{apps: apps}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, NewDeviceError("enumerate_applications", deviceID, ctx.Err())
+	case r := <-done:
+		if r.err != nil {
+			return nil, NewDeviceError("enumerate_applications", deviceID, r.err)
+		}
+		e.logger.Info("applications enumerated", "deviceID", deviceID, "count", len(r.apps))
+		return r.apps, nil
+	}
 }
