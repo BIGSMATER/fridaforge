@@ -20,8 +20,11 @@ func TestNewEngine(t *testing.T) {
 		if e.lister == nil {
 			t.Fatal("lister should default to FridaDeviceLister")
 		}
-		if e.mgr == nil {
-			t.Fatal("DeviceManager should not be nil")
+		if e.manager == nil {
+			t.Fatal("SessionManager should not be nil")
+		}
+		if e.ActiveSessions() != 0 {
+			t.Fatal("ActiveSessions should be 0 on creation")
 		}
 	})
 

@@ -83,12 +83,12 @@
 
 ### 实现
 
-- [ ] T016 [US3] 实现 `SessionManager` 结构体：`sync.Mutex` (session map), `sync.WaitGroup` (goroutine 计数), 软上限 64 在 `pkg/fridaengine/manager.go`
-- [ ] T017 [US3] 实现 `SessionManager.Attach()` — 每个 session 启动独立 goroutine, 独立聚合错误 在 `pkg/fridaengine/manager.go`
-- [ ] T018 [US4] 实现 `SessionManager.DetachAll()` — 遍历所有 session, 逐一遍历 Detach, 收集错误 在 `pkg/fridaengine/manager.go`
-- [ ] T019 [US4] 实现 `Engine.Close()` — 委托给 SessionManager.DetachAll(), 支持 defer 模式 在 `pkg/fridaengine/engine.go`
-- [ ] T020 [US3] 将 `*slog.Logger` 依赖注入接入 Engine 和 SessionManager 构造函数 在 `pkg/fridaengine/engine.go`
-- [ ] T021 [US3] 编写 SessionManager 的 table-driven 测试（并发 attach, 错误聚合, 软上限 warn）在 `pkg/fridaengine/manager_test.go`
+- [x] T016 [US3] 实现 `SessionManager` 结构体：`sync.Mutex` (session map), 软上限 64 在 `pkg/fridaengine/manager.go`
+- [x] T017 [US3] 实现 `SessionManager.Attach()` — 每个 session Attach 独立错误返回, Mutex 保护 sessions map 在 `pkg/fridaengine/manager.go`
+- [x] T018 [US4] 实现 `SessionManager.DetachAll()` — 遍历所有 session, goroutine 并发 Detach, 收集错误 在 `pkg/fridaengine/manager.go`
+- [x] T019 [US4] 实现 `Engine.Close()` — 委托给 SessionManager.DetachAll(), 支持 defer 模式 在 `pkg/fridaengine/engine.go`
+- [x] T020 [US3] 将 `*slog.Logger` 依赖注入接入 Engine 和 SessionManager 构造函数 在 `pkg/fridaengine/engine.go`
+- [x] T021 [US3] 编写 SessionManager 的 table-driven 测试（并发 attach, 错误聚合, 软上限）在 `pkg/fridaengine/manager_test.go`
 
 **检查点**: 多 Session 并发 + 超时保护 + 清理机制完整
 
