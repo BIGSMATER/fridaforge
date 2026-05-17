@@ -37,7 +37,7 @@
 | **Go 知识** | **并发核心：** goroutine、`sync.WaitGroup`、`context.WithTimeout/Cancel`、`sync.Mutex/RWMutex`、channel 生产-消费者模式；**工程设计：** `interface` 抽象 (`DeviceManager`/`SessionManager`)、依赖注入、错误包装 (`%w`) |
 | **逆向知识** | Frida 完整生命周期：`enumerate_devices()` → `attach()` → `create_script()`；`frida-server` 部署；USB vs 网络远程管理；Scope 枚举 (ScopeMinimal/Full) |
 | **Harness** | 最小 Android App（Hello World 方法），验证 Attach + 调用方法（真机测试通过） |
-| **产出物** | `pkg/fridaengine/` 10 个源文件 (engine/session/device/manager/script/errors + 5 test); 35 tests; 覆盖率 76.4%; 教学文档 1140 行; `//go:build integration` 集成测试骨架; Makefile `make devkit` |
+| **产出物** | `pkg/fridaengine/` 12 个源文件 (6 生产 + 6 测试含 `integration_test.go`); 38 tests; 覆盖率 76.4% (CGO 路径由 integration tag 补全); 教学文档 ~1140 行; Makefile `make devkit`; M2 回顾文档 |
 
 ---
 

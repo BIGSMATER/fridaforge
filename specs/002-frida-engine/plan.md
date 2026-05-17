@@ -37,7 +37,7 @@
 | WaitGroup 代替 time.Sleep | 2.4 | ✅ | SessionManager 使用 WaitGroup |
 | Mutex 保护共享状态 | 2.4 | ✅ | SessionManager.sessions + HookSession.state |
 | table-driven 测试 | 2.5 | ✅ | 所有测试使用 table-driven 模式 |
-| 覆盖率 ≥ 80% | 2.5 | ✅ | 目标 100% 导出函数覆盖 |
+| 覆盖率 ≥ 80% | 2.5 | ⚠️ | 76.4% — script.go 和 CGO session 依赖路径由 `//go:build integration` 测试覆盖 |
 | Go doc comment | 2.6 | ✅ | 所有导出类型/函数含 Go doc |
 | Cleanup 保证 (defer) | 3.2 | ✅ | Session.Detach() 支持 defer + 幂等 |
 | Hook 回调 ≤ 100ms | 3.3 | ✅ | 消息通过有缓冲 channel 异步传递 |
@@ -61,7 +61,7 @@ specs/002-frida-engine/
 │   └── engine-api.md    # Engine API 契约
 ├── checklists/
 │   └── requirements.md  # Spec Quality Checklist
-└── tasks.md             # Phase 2 产出 (未生成)
+└── tasks.md             # Phase 2 产出 (已完成)
 ```
 
 ### Source Code (repository root)
@@ -77,6 +77,7 @@ pkg/fridaengine/              # M2 新增包
 ├── script.go                 # HookScript 包装
 ├── manager.go                # SessionManager (并发调度)
 ├── manager_test.go
+├── integration_test.go       # 集成测试 (//go:build integration)
 ├── errors.go                 # DeviceError, SessionError, ScriptError
 └── errors_test.go
 

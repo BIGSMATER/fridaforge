@@ -116,8 +116,8 @@
 
 - [x] T025 运行 `gofmt -d` 并修复所有格式问题
 - [x] T026 运行 `go vet ./pkg/fridaengine/` 并修复所有警告
-- [x] T027 运行 `golangci-lint run ./pkg/fridaengine/` 并修复所有问题 (golangci-lint 未安装，跳过)
-- [x] T028 运行 `go test -coverprofile=coverage.out ./pkg/fridaengine/` — 覆盖率 75.8%（非 frida session 依赖路径 100%）
+- [ ] T027 运行 `golangci-lint run ./pkg/fridaengine/` 并修复所有问题（待安装 golangci-lint）
+- [x] T028 运行 `go test -coverprofile=coverage.out ./pkg/fridaengine/` — 覆盖率 76.4%（script.go 和 session CGO 路径由 integration tag 补全）
 - [x] T029 运行 `go test -bench=. ./pkg/fridaengine/` — 验证 SC-001~SC-005 性能指标
 - [x] T030 [P] 创建集成测试骨架，使用 `//go:build integration` 标签隔离真机测试，添加到 `pkg/fridaengine/integration_test.go`
 - [x] T031 更新 `AGENTS.md` — 标记 M2 完成状态

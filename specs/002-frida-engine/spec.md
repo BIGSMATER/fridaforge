@@ -2,7 +2,7 @@
 
 **Feature Branch**: `002-frida-engine`  
 **Created**: 2026-05-12  
-**Status**: Draft  
+**Status**: Implemented  
 **Input**: User description: "构建 Frida 并发调度引擎 (fridaengine)，通过 frida-go 官方绑定实现设备枚举、进程 Attach、脚本注入和并发 Session 管理。替换 M1 的 StubDeviceLister 为真实 Frida 实现，引入 Go 并发模型 (goroutine/sync.WaitGroup/context/channel) 作为核心调度机制。"
 
 ## User Scenarios & Testing *(mandatory)*
