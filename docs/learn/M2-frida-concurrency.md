@@ -783,6 +783,52 @@ func (s SessionState) String() string {
 
 **为什么用 `iota` 而不用 string enum？** M1 的 `HookType` 用 `type HookType string` + `const HookTypeOverload HookType = "overload"`——那是字符串枚举，方便 YAML 反序列化。这里用 int 枚举，因为 `SessionState` 只在 Go 内部流转，不需要字符串序列化，int 比 string 比较更快（== 是单条 CPU 指令）。
 
+### 1.12 Go test 工具链 — 覆盖率、条件编译、静态分析
+
+#### 1.12.1 `//go:build integration` — 条件编译
+
+Go 的 build tag 控制哪些文件参与编译。集成测试需要真机，CI 上不能跑——用 tag 隔离：
+
+```go
+//go:build integration
+// +build integration       ← 兼容旧版 Go 的语法
+
+package fridaengine
+
+func TestIntegrationFullLifecycle(t *testing.T) {
+    e := NewEngine(nil, nil)
+    // ... 需要真机的测试 ...
+}
+```
+
+**使用**：
+```bash
+go test ./pkg/fridaengine/                # 普通测试（不含 integration）
+go test -tags=integration ./pkg/fridaengine/  # 包含 integration 测试
+```
+
+**和 `t.Skip` 的区别**：`t.Skip` 仍然会编译测试代码（如果 import 了不存在的包会编译失败），build tag 直接从编译阶段排除。
+
+#### 1.12.2 覆盖率 — `-coverprofile`
+
+```bash
+go test -coverprofile=coverage.out ./pkg/fridaengine/  # 生成覆盖率文件
+go tool cover -func=coverage.out                        # 按函数查看
+go tool cover -html=coverage.out                        # 浏览器可视化
+```
+
+**M2 覆盖率**：76.4%。未覆盖的是 frida session 依赖路径（`CreateScript`、`Detach` 完整流程、`script.go`），这些由 `integration` 标签测试覆盖。
+
+**为什么不是 100%？** 核心库代码 100% 覆盖必须依赖真实 frida-server，这不是单元测试能解决的。CI 上也不能假设有 Android 设备。所以分两层：单测 76.4% + 集成测试补全。
+
+#### 1.12.3 go vet — 静态分析
+
+```bash
+go vet ./pkg/fridaengine/  # 检查常见错误：unreachable code、printf 参数错误等
+```
+
+vet 和 lint 的区别：vet 是 Go 标准库自带，检查运行时正确性问题；lint (golangci-lint) 是第三方，检查代码风格。M2 通过 vet，lint 工具待安装。
+
 ---
 
 ## 二、Android 逆向轨道：Frida 完整生命周期
@@ -1022,52 +1068,6 @@ func (e *Engine) EnumerateProcesses(ctx context.Context, deviceID string) ([]Pro
 **设计选择**：M2 统一用 `ScopeFull`——虽然比 `ScopeMinimal` 慢一点，但用户枚举进程时通常需要完整列表，半截子数据反而困惑。以后可以加参数让用户选择。
 
 **Go 模式**：`findDevice()` 是私有 helper——三个方法（Attach/EnumerateProcesses/EnumerateApplications）都需要根据 deviceID 找 frida 设备，抽出来避免重复代码。
-
-### 2.7 Go test 工具链 — 覆盖率、基准、条件编译
-
-#### 2.7.1 `//go:build integration` — 条件编译
-
-Go 的 build tag 控制哪些文件参与编译。集成测试需要真机，CI 上不能跑——用 tag 隔离：
-
-```go
-//go:build integration
-// +build integration       ← 兼容旧版 Go 的语法
-
-package fridaengine
-
-func TestIntegrationFullLifecycle(t *testing.T) {
-    e := NewEngine(nil, nil)
-    // ... 需要真机的测试 ...
-}
-```
-
-**使用**：
-```bash
-go test ./pkg/fridaengine/                # 普通测试（不含 integration）
-go test -tags=integration ./pkg/fridaengine/  # 包含 integration 测试
-```
-
-**和 `t.Skip` 的区别**：`t.Skip` 仍然会编译测试代码（如果 import 了不存在的包会编译失败），build tag 直接从编译阶段排除。
-
-#### 2.7.2 覆盖率 — `-coverprofile`
-
-```bash
-go test -coverprofile=coverage.out ./pkg/fridaengine/  # 生成覆盖率文件
-go tool cover -func=coverage.out                        # 按函数查看
-go tool cover -html=coverage.out                        # 浏览器可视化
-```
-
-**M2 覆盖率**：75.8%。未覆盖的是 frida session 依赖路径（`CreateScript`、`Detach` 完整流程、`script.go`），这些由 `integration` 标签测试覆盖。
-
-**为什么不是 100%？** 核心库代码 100% 覆盖必须依赖真实 frida-server，这不是单元测试能解决的。CI 上也不能假设有 Android 设备。所以分两层：单测 75.8% + 集成测试补全。
-
-#### 2.7.3 go vet — 静态分析
-
-```bash
-go vet ./pkg/fridaengine/  # 检查常见错误：unreachable code、printf 参数错误等
-```
-
-vet 和 lint 的区别：vet 是 Go 标准库自带，检查运行时正确性问题；lint (golangci-lint) 是第三方，检查代码风格。M2 通过 vet，lint 工具待安装。
 
 ---
 
