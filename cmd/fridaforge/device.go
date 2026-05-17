@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/bigsmater/fridaforge/pkg/device"
+	"github.com/bigsmater/fridaforge/pkg/fridaengine"
 )
 
 func init() {
@@ -30,10 +30,15 @@ var deviceListCmd = &cobra.Command{
 }
 
 func runDeviceList(cmd *cobra.Command, args []string) error {
-	lister := &device.StubDeviceLister{}
-	devices, err := lister.ListDevices(context.Background())
+	engine, err := fridaengine.NewEngineWithDefaults()
 	if err != nil {
-		return fmt.Errorf("Frida 服务不可达: %w", err)
+		return fmt.Errorf("引擎初始化失败: %w", err)
+	}
+	defer engine.Close()
+
+	devices, err := engine.ListDevices(context.Background())
+	if err != nil {
+		return fmt.Errorf("设备枚举失败: %w", err)
 	}
 
 	if len(devices) == 0 {
