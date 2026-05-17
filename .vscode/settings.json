@@ -1,0 +1,6 @@
+{
+    "go.toolsEnvVars": {
+        "CGO_CFLAGS": "-I${workspaceFolder}/.devkit",
+        "CGO_LDFLAGS": "-L${workspaceFolder}/.devkit"
+    }
+}

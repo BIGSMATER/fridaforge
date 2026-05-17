@@ -1,0 +1,36 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "device list",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/fridaforge",
+            "args": ["device", "list"],
+            "env": {
+                "CGO_CFLAGS": "-I${workspaceFolder}/.devkit",
+                "CGO_LDFLAGS": "-L${workspaceFolder}/.devkit"
+            }
+        },
+        {
+            "name": "spec validate",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/fridaforge",
+            "args": ["spec", "validate", "${input:specFile}"],
+            "env": {
+                "CGO_CFLAGS": "-I${workspaceFolder}/.devkit",
+                "CGO_LDFLAGS": "-L${workspaceFolder}/.devkit"
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "specFile",
+            "type": "promptString",
+            "description": "YAML spec 文件路径"
+        }
+    ]
+}
