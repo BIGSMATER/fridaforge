@@ -1,0 +1,11 @@
+{{if .MethodSignature}}
+    TargetClass.{{.MethodName}}.overload('{{.MethodSignature}}').implementation = function() {
+{{else}}
+    TargetClass.{{.MethodName}}.overload().implementation = function() {
+{{end}}
+        console.log("[+] {{.ClassName}}.{{.MethodName}} called");
+        send(JSON.stringify({event: "enter", class: "{{.ClassName}}", method: "{{.MethodName}}", args: Array.prototype.slice.call(arguments)}));
+        var result = this.{{.MethodName}}.apply(this, arguments);
+        send(JSON.stringify({event: "leave", class: "{{.ClassName}}", method: "{{.MethodName}}", result: result}));
+        return result;
+    };

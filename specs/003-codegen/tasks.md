@@ -24,11 +24,11 @@
 2. ✍️ 创建 `docs/learn/M3-codegen.md` 初始版（独立迷你示例 10-20 行，三轨齐全）
 3. 💻 创建模板文件
 
-- [ ] T001 [P] 创建 `docs/learn/M3-codegen.md` 教学文档初始版 — 宪法 §6.2: (1) Go 轨道: text/template 语法、embed.FS 内嵌、strings.Builder; (2) 逆向轨道: Java.use/Java.perform/overload/implementation/send + Interceptor.attach 全貌; (3) AI 轨道: 声明式代码生成器设计哲学 (Spec → Template → Script 的桥)
-- [ ] T002 [P] 创建 `pkg/codegen/` 和 `pkg/codegen/templates/` 目录
-- [ ] T003 [P] 创建 overload 模板文件 `pkg/codegen/templates/overload.js.tmpl` — Java.perform + Java.use + .overload(sig).implementation + this.xxx() 原方法调用 + send()
-- [ ] T004 [P] 创建 override 模板文件 `pkg/codegen/templates/override.js.tmpl` — Java.use + .overload(sig).implementation (完全替换，无原方法调用) + send()
-- [ ] T005 [P] 创建 native 模板文件 `pkg/codegen/templates/native.js.tmpl` — Process.findModuleByName + Module.findExportByName + Interceptor.attach + 错误检查 + send()
+- [x] T001 [P] 创建 `docs/learn/M3-codegen.md` 教学文档初始版 — 宪法 §6.2: (1) Go 轨道: text/template 语法、embed.FS 内嵌、strings.Builder; (2) 逆向轨道: Java.use/Java.perform/overload/implementation/send + Interceptor.attach 全貌; (3) AI 轨道: 声明式代码生成器设计哲学 (Spec → Template → Script 的桥)
+- [x] T002 [P] 创建 `pkg/codegen/` 和 `pkg/codegen/templates/` 目录
+- [x] T003 [P] 创建 overload 模板文件 `pkg/codegen/templates/overload.js.tmpl` — Java.perform + Java.use + .overload(sig).implementation + this.xxx() 原方法调用 + send()
+- [x] T004 [P] 创建 override 模板文件 `pkg/codegen/templates/override.js.tmpl` — Java.use + .overload(sig).implementation (完全替换，无原方法调用) + send()
+- [x] T005 [P] 创建 native 模板文件 `pkg/codegen/templates/native.js.tmpl` — Process.findModuleByName + Module.findExportByName + Interceptor.attach + 错误检查 + send()
 
 ---
 

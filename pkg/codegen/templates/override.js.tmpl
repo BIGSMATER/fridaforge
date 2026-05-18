@@ -1,0 +1,10 @@
+{{if .MethodSignature}}
+    TargetClass.{{.MethodName}}.overload('{{.MethodSignature}}').implementation = function() {
+{{else}}
+    TargetClass.{{.MethodName}}.overload().implementation = function() {
+{{end}}
+        console.log("[+] {{.ClassName}}.{{.MethodName}} hooked (override)");
+        send(JSON.stringify({event: "override", class: "{{.ClassName}}", method: "{{.MethodName}}", args: Array.prototype.slice.call(arguments)}));
+        var result = this.{{.MethodName}}.apply(this, arguments);
+        return result;
+    };
