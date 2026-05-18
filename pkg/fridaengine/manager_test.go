@@ -120,10 +120,17 @@ func TestEngineAttachIntegration(t *testing.T) {
 		t.Skip("no devices available for integration test")
 	}
 
-	session, err := e.Attach(ctx, devices[0].ID, "com.android.systemui")
-	if err != nil {
-		t.Logf("Attach failed (expected if systemui not running): %v", err)
-		return
+	var session *HookSession
+	for _, dev := range devices {
+		session, err = e.Attach(ctx, dev.ID, "com.android.systemui")
+		if err != nil {
+			t.Logf("skipping %s (%s): %v", dev.ID, dev.Name, err)
+			continue
+		}
+		break
+	}
+	if session == nil {
+		t.Skip("no reachable device for attach integration test")
 	}
 
 	if session.State() != SessionStateCreated {
