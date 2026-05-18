@@ -93,7 +93,7 @@
 **独立测试**: `fridaforge spec generate valid.yaml` 输出 JS 到 stdout，`-o out.js` 写入文件，无效 YAML 报错
 
 - [ ] T023 [US1] 在 `cmd/fridaforge/spec.go` 新增 `specGenerateCmd` cobra 子命令: Use="generate <文件>"，Short="生成 Frida JS Hook 脚本"，Args=cobra.ExactArgs(1)，RunE 实现: LoadSpec → Validate → NewGenerator → Generate → 输出
-- [ ] T024 [US1] 在 `cmd/fridaforge/spec.go` 添加 `-o, --output` flag (string) 和 `-t, --target` flag (string) — -o 控制文件输出 vs stdout，-t 按 className.methodName 过滤
+- [ ] T024 [US1] 在 `cmd/fridaforge/spec.go` 添加 `-o, --output` flag (string) 和 `-t, --target` flag (string) — -o 控制文件输出 vs stdout，-t 按 `className.methodName` 精确匹配过滤 (不含 signature)
 - [ ] T025 [US1] 在 `cmd/fridaforge/spec.go` 的 RunE 中实现 `-o` 输出逻辑: 指定时 `os.WriteFile`，未指定时 `fmt.Println(Combined)`
 
 **Checkpoint**: CLI `fridaforge spec generate` 端到端可用
@@ -102,15 +102,19 @@
 
 ## Phase 7: 打磨与交叉关注
 
-**目标**: 代码质量验证，文档更新
+**目标**: 代码质量验证，文档更新，宪法 §6.2 学习文档
 
-- [ ] T026 运行 `gofmt -d` 并修复所有格式问题
+- [ ] T026 运行 `gofmt -d` 并修复所有格式问题，验证所有导出类型/函数含 Go doc comment（宪法 §2.6）
 - [ ] T027 运行 `go vet ./...` 并修复所有警告
 - [ ] T028 运行 `golangci-lint run ./...` 并修复所有问题
 - [ ] T029 运行 `go test -coverprofile=coverage.out ./pkg/codegen/ ./pkg/spec/ ./pkg/config/` — 覆盖率 ≥ 80%，追加未完覆盖路径
 - [ ] T030 运行 `go test -v ./pkg/codegen/` — 验证全部测试通过
-- [ ] T031 [P] 更新 `docs/milestones.md` — 标记 M3 完成状态，更新实际产出物清单
-- [ ] T032 [P] 更新 `AGENTS.md` — 标记 M3 完成状态
+- [ ] T031 运行 `go test -bench=. ./pkg/codegen/` — 验证 SC-001 (<2s 单 spec) 和 SC-003 (<3s 100 hooks) 性能指标
+- [ ] T032 [P] 创建 `pkg/codegen/integration_test.go` — 使用 `//go:build integration` 标签，真机 Frida 加载生成脚本验证 SC-002 (100% Frida load success)
+- [ ] T033 [P] 更新 `docs/milestones.md` — 标记 M3 完成状态，更新实际产出物清单
+- [ ] T034 [P] 更新 `AGENTS.md` — 标记 M3 完成状态
+- [ ] T035 [P] 创建 `docs/learn/M3-codegen.md` — 宪法 §6.2 三轨教学文档 (Go: text/template + embed.FS + strings.Builder; 逆向: Frida JS API 深度; AI: 代码生成器设计哲学)
+
 
 ---
 
@@ -141,7 +145,7 @@ Phase 1 (环境)
 | Phase 3 | T009+T010, T011+T012 |
 | Phase 4 | T014+T015 |
 | Phase 5 | T018+T019+T020, T021+T022 |
-| Phase 7 | T031+T032 |
+| Phase 7 | T033+T034+T035 |
 
 ---
 

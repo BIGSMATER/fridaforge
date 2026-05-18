@@ -47,7 +47,7 @@ Java.perform(function() {
 | ClassName | string | 目标类全限定名 (Java hooks) |
 | MethodName | string | 目标方法/函数名 |
 | HookType | string | "overload" / "override" / "native" |
-| MethodSignature | string | 参数签名整串（空 → 不传 signature） |
+| MethodSignature | string | 参数签名整串（空 → 不传 signature）。M3 不做分割预处理 (clarify Q3 决议: 整串原样插入) |
 | ModuleName | string | Native hook 的 .so 模块名 |
 
 **渲染规则**:
