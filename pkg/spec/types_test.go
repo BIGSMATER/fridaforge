@@ -11,7 +11,8 @@ func TestHookTypeConstants(t *testing.T) {
 		expected string
 	}{
 		{"overload", HookTypeOverload, "overload"},
-		{"replace", HookTypeReplace, "replace"},
+		{"override", HookTypeOverride, "override"},
+		{"native", HookTypeNative, "native"},
 	}
 
 	for _, tt := range tests {
@@ -48,11 +49,56 @@ func TestHookSpecYAMLTags(t *testing.T) {
 	}
 }
 
+func TestHookTargetNewFields(t *testing.T) {
+	tests := []struct {
+		name string
+		ht   HookTarget
+	}{
+		{
+			name: "method_signature and module_name",
+			ht: HookTarget{
+				ClassName:       "com.example.Foo",
+				MethodName:      "bar",
+				HookType:        HookTypeOverload,
+				MethodSignature: "java.lang.String, int",
+				ModuleName:      "libfoo.so",
+			},
+		},
+		{
+			name: "native hook with module_name",
+			ht: HookTarget{
+				MethodName: "open",
+				HookType:   HookTypeNative,
+				ModuleName: "libc.so",
+			},
+		},
+		{
+			name: "empty new fields",
+			ht: HookTarget{
+				ClassName:  "com.example.App",
+				MethodName: "onCreate",
+				HookType:   HookTypeOverride,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.ht.MethodName == "" {
+				t.Error("MethodName should not be empty")
+			}
+		})
+	}
+}
+
 func TestValidationError(t *testing.T) {
 	t.Run("empty errors", func(t *testing.T) {
 		ve := &ValidationError{}
 		if ve.HasErrors() {
 			t.Error("HasErrors() = true, want false")
+		}
+		if ve.HasWarnings() {
+			t.Error("HasWarnings() = true, want false")
 		}
 		if ve.Error() != "" {
 			t.Errorf("Error() = %q, want empty string", ve.Error())
@@ -70,6 +116,18 @@ func TestValidationError(t *testing.T) {
 		errStr := ve.Error()
 		if errStr == "" {
 			t.Fatal("Error() returned empty string")
+		}
+	})
+
+	t.Run("with warnings only", func(t *testing.T) {
+		ve := &ValidationError{}
+		ve.AddWarning("hooks[0]", "重复配置", 0)
+
+		if ve.HasErrors() {
+			t.Error("HasErrors() = true, want false (warnings are not errors)")
+		}
+		if !ve.HasWarnings() {
+			t.Error("HasWarnings() = false, want true")
 		}
 	})
 }

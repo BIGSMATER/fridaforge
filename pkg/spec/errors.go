@@ -20,10 +20,11 @@ func (e *FieldError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Path, e.Message)
 }
 
-// ValidationError 表示一次校验操作的结果，包含零个或多个字段错误。
-// 当 Errors 为空时表示校验通过。
+// ValidationError 表示一次校验操作的结果，包含零个或多个字段错误和警告。
+// 当 Errors 为空时表示校验通过。Warnings 不影响校验通过状态。
 type ValidationError struct {
-	Errors []FieldError
+	Errors   []FieldError
+	Warnings []FieldError
 }
 
 // Error 实现 error 接口，渲染所有字段错误。
@@ -53,4 +54,18 @@ func (e *ValidationError) Add(path, msg string, line int) {
 // HasErrors 返回校验是否包含错误。
 func (e *ValidationError) HasErrors() bool {
 	return len(e.Errors) > 0
+}
+
+// AddWarning 往校验警告中追加一个字段警告。
+func (e *ValidationError) AddWarning(path, msg string, line int) {
+	e.Warnings = append(e.Warnings, FieldError{
+		Path:    path,
+		Message: msg,
+		Line:    line,
+	})
+}
+
+// HasWarnings 返回校验是否包含警告。
+func (e *ValidationError) HasWarnings() bool {
+	return len(e.Warnings) > 0
 }

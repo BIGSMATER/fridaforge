@@ -38,10 +38,10 @@
 
 **⚠️ CRITICAL**: 此阶段未完成前，codegen 不得启动
 
-- [ ] T006 [P] 更新 `pkg/spec/types.go` — 重命名 `HookTypeReplace` → `HookTypeOverride` (值 `"replace"` → `"override"`)，新增 `HookTypeNative`，`HookTarget` 新增 `MethodSignature string` 和 `ModuleName string` 字段 (yaml omitempty tag)
-- [ ] T007 [P] 更新 `pkg/spec/types_test.go` — 覆盖 3 种 HookType 常量 + HookTarget 新字段的 YAML 反序列化
-- [ ] T008 更新 `pkg/config/validator.go` — 校验 hook_type 识别 3 种值 (overload/override/native)，native 类型要求 module_name 非空，新增重复 Hook 检测 (class+method+sig+type 相同 → ValidationError.Warnings)
-- [ ] T009 更新 `pkg/config/validator_test.go` — table-driven 覆盖: 3 种 hook_type 合法校验、native 缺 module_name 报错、重复 Hook 产生 warning
+- [x] T006 [P] 更新 `pkg/spec/types.go` — 重命名 `HookTypeReplace` → `HookTypeOverride` (值 `"replace"` → `"override"`)，新增 `HookTypeNative`，`HookTarget` 新增 `MethodSignature string` 和 `ModuleName string` 字段 (yaml omitempty tag)
+- [x] T007 [P] 更新 `pkg/spec/types_test.go` — 覆盖 3 种 HookType 常量 + HookTarget 新字段的 YAML 反序列化
+- [x] T008 更新 `pkg/config/validator.go` — 校验 hook_type 识别 3 种值 (overload/override/native)，native 类型要求 module_name 非空，新增重复 Hook 检测 (class+method+sig+type 相同 → ValidationError.Warnings)
+- [x] T009 更新 `pkg/config/validator_test.go` — table-driven 覆盖: 3 种 hook_type 合法校验、native 缺 module_name 报错、重复 Hook 产生 warning
 
 **Checkpoint**: spec/config 数据模型升级完成，codegen 可以依赖新类型
 

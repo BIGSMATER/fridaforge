@@ -23,7 +23,7 @@ hooks:
     hook_type: overload
   - class_name: com.example.Utils
     method_name: encrypt
-    hook_type: replace
+    hook_type: override
 `
 		path := filepath.Join(tmpDir, "valid.yaml")
 		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
@@ -55,7 +55,7 @@ hooks:
 		if s.Hooks[1].MethodName != "encrypt" {
 			t.Errorf("Hooks[1].MethodName = %q", s.Hooks[1].MethodName)
 		}
-		if s.Hooks[1].HookType != spec.HookTypeReplace {
+		if s.Hooks[1].HookType != spec.HookTypeOverride {
 			t.Errorf("Hooks[1].HookType = %q", s.Hooks[1].HookType)
 		}
 	})
@@ -116,7 +116,7 @@ hooks:
     hook_type: overload
   - class_name: com.example.b.Crypto
     method_name: encrypt
-    hook_type: replace
+    hook_type: override
   - class_name: com.example.c.Network
     method_name: sendRequest
     hook_type: overload
@@ -144,7 +144,7 @@ hooks:
 			ht     spec.HookType
 		}{
 			{"com.example.a.MainActivity", "onCreate", spec.HookTypeOverload},
-			{"com.example.b.Crypto", "encrypt", spec.HookTypeReplace},
+			{"com.example.b.Crypto", "encrypt", spec.HookTypeOverride},
 			{"com.example.c.Network", "sendRequest", spec.HookTypeOverload},
 		}
 		for i, exp := range expected {

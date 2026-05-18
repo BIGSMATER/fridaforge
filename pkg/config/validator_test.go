@@ -44,7 +44,38 @@ func TestValidate(t *testing.T) {
 			errMsgs: []string{"hooks", "至少需要"},
 		},
 		{
-			name: "empty class_name",
+			name: "valid spec with override",
+			spec: spec.HookSpec{
+				AppPackage: "com.example.app",
+				Hooks: []spec.HookTarget{
+					{ClassName: "com.example.MainActivity", MethodName: "onResume", HookType: spec.HookTypeOverride},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid native spec",
+			spec: spec.HookSpec{
+				AppPackage: "com.example.app",
+				Hooks: []spec.HookTarget{
+					{MethodName: "open", HookType: spec.HookTypeNative, ModuleName: "libc.so"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "native missing module_name",
+			spec: spec.HookSpec{
+				AppPackage: "com.example.app",
+				Hooks: []spec.HookTarget{
+					{MethodName: "open", HookType: spec.HookTypeNative},
+				},
+			},
+			wantErr: true,
+			errMsgs: []string{"hooks[0].module_name", "不能为空"},
+		},
+		{
+			name: "empty class_name for overload",
 			spec: spec.HookSpec{
 				AppPackage: "com.example.app",
 				Hooks: []spec.HookTarget{
@@ -82,10 +113,21 @@ func TestValidate(t *testing.T) {
 				AppPackage: "com.example.app",
 				Hooks: []spec.HookTarget{
 					{ClassName: "com.example.A", MethodName: "foo", HookType: spec.HookTypeOverload},
-					{ClassName: "com.example.B", MethodName: "bar", HookType: spec.HookTypeReplace},
+					{ClassName: "com.example.B", MethodName: "bar", HookType: spec.HookTypeOverride},
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "duplicate hooks produce warning",
+			spec: spec.HookSpec{
+				AppPackage: "com.example.app",
+				Hooks: []spec.HookTarget{
+					{ClassName: "com.example.Foo", MethodName: "bar", HookType: spec.HookTypeOverload},
+					{ClassName: "com.example.Foo", MethodName: "bar", HookType: spec.HookTypeOverload},
+				},
+			},
+			wantErr: true, // ValidationError returned with warnings
 		},
 		{
 			name: "multiple errors reported",
