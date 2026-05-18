@@ -128,6 +128,132 @@ result := b.String()        // 一次性转为 string
 - `Len()` — 当前内容长度
 - `String()` — 输出最终结果
 
+### 1.4 Phase 2 知识点：类型分发、结构体标签、去重算法
+
+Phase 2 修改了 `pkg/spec/types.go` 和 `pkg/config/validator.go`。涉及三个 Go 知识点：
+
+#### 1.4.1 switch 类型分发
+
+校验器需要根据 `HookType` 执行不同校验逻辑。Go 的 `switch` 不需要 `break`（自动隐含）：
+
+```go
+func validate(name string) {
+    switch name {
+    case "a", "b":       // 多个 case 标签用逗号分隔
+        fmt.Println("a or b")
+    case "c":
+        fmt.Println("c")
+    default:              // 无匹配时执行
+        fmt.Println("unknown")
+    }
+}
+```
+
+> ⚠️ 项目实际代码：
+
+```go
+// pkg/config/validator.go — 你写的代码
+switch h.HookType {
+case spec.HookTypeOverload, spec.HookTypeOverride:
+    if h.ClassName == "" {
+        ve.Add(prefix+".class_name", "不能为空", 0)
+    }
+case spec.HookTypeNative:
+    if h.ModuleName == "" {
+        ve.Add(prefix+".module_name", "不能为空（native Hook 需要 module_name）", 0)
+    }
+default:
+    ve.Add(prefix+".hook_type",
+        fmt.Sprintf("不支持的值 %q，有效的 Hook 类型: overload, override, native", h.HookType),
+        0)
+}
+```
+
+这就实现了"Java 类型要求 ClassName，Native 类型要求 ModuleName"的差异化校验——同一个 `for i, h := range s.Hooks` 循环，三种类型走三条不同的校验路径。
+
+#### 1.4.2 map[string]int — O(1) 哈希去重
+
+重复 Hook 检测的核心数据结构：
+
+```go
+// 独立示例
+func hasDuplicates(items []string) int {
+    seen := make(map[string]int)  // key → 首次出现的索引
+    for i, item := range items {
+        if prevIdx, exists := seen[item]; exists {
+            fmt.Printf("重复: %s (首次出现在索引 %d, 当前索引 %d)\n", item, prevIdx, i)
+            return prevIdx
+        }
+        seen[item] = i
+    }
+    return -1
+}
+```
+
+`map[string]int` 的查找是 O(1)（哈希表），比二层循环的 O(n²) 快得多。100 个 Hook 的重复检测：HashMap 方式 100 次比较，二层循环 100×99/2 = 4950 次比较。
+
+> ⚠️ 项目实际代码：
+
+```go
+// pkg/config/validator.go — 你写的代码
+seen := make(map[string]int)
+for i, h := range s.Hooks {
+    dupKey := fmt.Sprintf("%s|%s|%s|%s",
+        h.ClassName, h.MethodName, h.MethodSignature, h.HookType)
+    if prevIdx, exists := seen[dupKey]; exists {
+        ve.AddWarning(prefix+".hook_type",
+            fmt.Sprintf("与 hooks[%d] 重复 ...", prevIdx), 0)
+    } else {
+        seen[dupKey] = i
+    }
+}
+```
+
+四个字段用 `|` 拼接成复合 key——只要有一个字段不同，key 就不同（不会误判为重复）。
+
+#### 1.4.3 struct tag omitempty — 可选字段
+
+```go
+type HookTarget struct {
+    ClassName       string   `yaml:"class_name"`
+    MethodSignature string   `yaml:"method_signature,omitempty"`  // ← omitempty
+    ModuleName      string   `yaml:"module_name,omitempty"`        // ← omitempty
+}
+```
+
+`omitempty` 的含义：
+- **序列化时**：字段值为零值（空字符串 `""`、0、nil）→ 不输出
+- **反序列化时**：YAML 中没有这个字段 → 字段保留零值（空字符串）
+
+所以 YAML 可以写：
+
+```yaml
+hooks:
+  - class_name: com.example.Foo
+    method_name: bar
+    hook_type: overload
+    # method_signature 和 module_name 都是可选的，不写也行
+```
+
+### 1.5 Phase 2 补充：ValidationError 的 Warnings 字段
+
+原来的 `ValidationError` 只有 `Errors []FieldError`。Phase 2 新增了 `Warnings []FieldError`，因为"重复 Hook"不应阻止生成（只是提醒），但需要通过某种方式通知调用者。
+
+```go
+// 关键设计决策：Warnings 不是 Errors
+type ValidationError struct {
+    Errors   []FieldError  // 阻止生成
+    Warnings []FieldError  // 不阻止生成，但应展示
+}
+
+// Validate 返回逻辑：
+// - HasErrors() → 返回 error（拒绝）
+// - HasWarnings() 但 !HasErrors() → 返回 error（但 Error() 字符串为空）
+//   → 调用者判断 err != nil 然后检查 ve.HasWarnings()
+```
+
+**为什么返回 error 而不是 nil？** 调用者需要知道"有 warning"这个事实。Go 的 `error` 接口是最自然的传递方式——即使没有 Errors，一个携带 Warnings 的 ValidationError 也是合法的 error 值。
+
 > 📝 补充于 Phase 4: 项目实际代码 — `pkg/codegen/templates.go` 中用 `strings.Builder` 累积各 Hook 渲染结果
 
 ---
@@ -252,6 +378,26 @@ send(JSON.stringify({
 
 M2 的 `HookSession.Messages()` channel 就是接收这些 `send()` 消息的。
 
+### 2.6 Phase 2 补充：HookType 三态设计
+
+Phase 2 完成了 `replace → override` 重命名并新增 `native`：
+
+| 类型 | YAML 值 | Frida API | class_name | module_name |
+|------|---------|-----------|-----------|-------------|
+| overload | `"overload"` | `Java.use().overload(sig).implementation` + `this.method()` | 必填 | 不需要 |
+| override | `"override"` | `Java.use().overload(sig).implementation` (不调用原方法) | 必填 | 不需要 |
+| native | `"native"` | `Interceptor.attach()` | 不需要 | 必填 |
+
+**设计考量**：为什么 native 用 `module_name` 而不是 `class_name`？
+
+Frida 的 Native Hook 需要两个关键信息定位目标函数：
+1. `.so` 文件名（`Process.findModuleByName("libc.so")`）
+2. 导出函数名（`Module.findExportByName("libc.so", "open")`）
+
+Android 的 Java 类有包名体系（`com.example.app`），Native 库只有文件名（`libnative-lib.so`）。二者不能混用同一个字段。Phase 2 的 validator 通过 `switch h.HookType` 判断：
+- Java 方向（overload/override）：`class_name` 必填
+- Native 方向：`module_name` 必填
+
 > 📝 补充于 Phase 5: 项目实际生成脚本完整示例 — overload + override + native 混合
 
 ---
@@ -299,3 +445,22 @@ tasks.md         → 定义 ORDER（逐步实现）
 ```
 
 > 📝 补充于 Phase 5: 项目架构实际代码 — `pkg/codegen/generator.go` 的 `Generate()` 方法展示 Spec→Template→Script 完整链条
+
+### 3.4 Phase 2 补充：Semantic Versioning 与 Breaking Change
+
+FridaForge 遵循 `0.x.y` 版本号（宪法 §5.3），这一阶段**允许 Breaking Change**。
+
+Phase 2 做了一个 Breaking Change：删除了旧的 `hook_type: "replace"`，重命名为 `"override"`。
+
+```
+修改前                            修改后
+───────                          ───────
+HookTypeReplace = "replace"      HookTypeOverride = "override"
+validator 接受 replace            validator 不再接受 replace
+```
+
+**为什么不等 1.0 再改？** `0.x.y` 版本意味着"API 不稳定"。实际上 Frida 社区的术语也是 `overload`（保留原调用）和 `override`（完全替换）。`replace` 这个词歧义太大——它无法区分"替换但保留原行为"和"完全替换"。
+
+**实践中怎么处理？** 测试文件中的 YAML 夹具从 `hook_type: replace` 改为 `hook_type: override`。`spec/types_test.go` 中的常量测试从 `HookTypeReplace` 改为 `HookTypeOverride`。
+
+在 SpecKit 工作流中，这种 Breaking Change 必须在 **specify 阶段**就声明（FR-015），在 **clarify 阶段**确认策略（硬 Breaking），在 **implement 阶段**干净利落地执行——不留别名，不搞"deprecated 过渡期"，因为项目还没有外部用户。这是 `0.x.y` 阶段的特权。
