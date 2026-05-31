@@ -254,6 +254,111 @@ type ValidationError struct {
 
 **为什么返回 error 而不是 nil？** 调用者需要知道"有 warning"这个事实。Go 的 `error` 接口是最自然的传递方式——即使没有 Errors，一个携带 Warnings 的 ValidationError 也是合法的 error 值。
 
+### 1.6 Phase 3 知识点：自定义错误类型与 error 接口
+
+Phase 3 创建了 `pkg/codegen/types.go` 和 `pkg/codegen/errors.go`。核心 Go 概念：**error 接口 + Unwrap 错误链**。
+
+#### 1.6.1 Go 的 error 接口 — 最简单也最强大的接口
+
+Go 的 `error` 接口只有一个方法：
+
+```go
+// 标准库的 error 接口 — 完整定义
+type error interface {
+    Error() string
+}
+```
+
+任何实现了 `Error() string` 的类型都是合法的 error。这意味着你可以创建**携带结构化信息**的错误：
+
+```go
+// ❌ 字符串错误 — 机器无法提取信息
+fmt.Errorf("template parse failed: %v", err)
+
+// ✅ 结构化错误 — errors.Is / errors.As 可精确判断
+type TemplateError struct {
+    Op   string  // "parse" 还是 "render"?
+    Name string  // 哪个模板出错了?
+    Err  error   // 原始错误是什么?
+}
+```
+
+**对比其他语言**：Java/C# 用 `try/catch` + 异常类继承；Go 用返回值传递错误 + 接口统一。Go 的方式更显式——你无法"忘记处理"一个错误，因为它就是一个普通的返回值。
+
+#### 1.6.2 Unwrap() — 错误链的穿透
+
+Go 1.13 引入 `Unwrap() error` 约定——如果错误实现了这个方法，`errors.Is/As` 就能穿透错误链：
+
+```go
+func (e *TemplateError) Unwrap() error {
+    return e.Err
+}
+
+// 使用方：
+var te *TemplateError
+if errors.As(err, &te) {
+    fmt.Println("模板操作失败:", te.Op)
+    fmt.Println("底层原因:", te.Unwrap())
+}
+```
+
+**类比快递包裹**：
+```
+外包装: "codegen: parse template 'overload.js.tmpl': ..."
+  │ .Unwrap()
+  ▼
+内层:   "template: overload.js.tmpl:3: unexpected error in operand"
+  │ .Unwrap()
+  ▼
+最内层: *text/template 的原始错误对象
+```
+
+#### 1.6.3 项目实际代码
+
+```go
+// pkg/codegen/types.go — 你写的代码
+type GenerateOutput struct {
+    Combined string            // 完整可执行 Frida JS 脚本
+    Scripts  []GeneratedScript // 各 Hook 独立代码段
+}
+
+type GeneratedScript struct {
+    HookTarget spec.HookTarget // 原始 Hook 目标
+    JSCode     string          // 生成的 JS 代码段
+}
+
+type RenderContext struct {
+    AppPackage      string // 父级 HookSpec.AppPackage
+    ClassName       string // 目标类名 (Java hooks)
+    MethodName      string // 目标方法/函数名
+    HookType        string // "overload" / "override" / "native"
+    MethodSignature string // 参数签名整串 (空→无签名)
+    ModuleName      string // Native .so 模块名
+}
+```
+
+**RenderContext 设计原则**：扁平结构体——所有字段都是标量。`text/template` 的 `{{.Field}}` 适合扁平对象，嵌套增加模板复杂度。所以 `HookTarget` 的字段被"展开"成 `RenderContext` 的一级字段，外加来自父级 `HookSpec` 的 `AppPackage`。
+
+```go
+// pkg/codegen/errors.go — 你写的代码
+type TemplateError struct {
+    Op   string // "parse" (编译) 或 "render" (渲染)
+    Name string // 模板文件名 (如 "overload.js.tmpl")
+    Err  error  // 底层 text/template 错误
+}
+
+type GenerateError struct {
+    Op  string // "generate"
+    Err error  // 底层错误
+}
+```
+
+**什么时候用哪个？**
+- `TemplateError`：`NewGenerator()` 编译模板失败——开发期 bug（fail-fast）
+- `GenerateError`：`Generate()` 运行时非法状态——比如 nil HookSpec
+
+两者都实现 `Error()` + `Unwrap()` — 跟 M2 的 `DeviceError/SessionError/ScriptError` 一样的三明治模式。
+
 > 📝 补充于 Phase 4: 项目实际代码 — `pkg/codegen/templates.go` 中用 `strings.Builder` 累积各 Hook 渲染结果
 
 ---
