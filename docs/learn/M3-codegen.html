@@ -592,6 +592,58 @@ type GenerateError struct {
 
 <p>两者都实现 <code>Error()</code> 和 <code>Unwrap()</code>——跟 M2 的 <code>DeviceError/SessionError/ScriptError</code> 一样的模式。这是项目中所有自定义错误的统一契约。</p>
 
+<h4>1.6.4 Phase 4 项目实际代码：templates.go — embed + Parse + Execute 三件套</h4>
+
+<div class="phase-nav"><strong>📍 Phase 4 内容</strong> — <code>pkg/codegen/templates.go</code> 是 <code>//go:embed</code>、<code>template.ParseFS</code>、<code>ExecuteTemplate</code> 三者首次组合使用</div>
+
+<pre data-lang="go"><code>// pkg/codegen/templates.go — 你写的代码
+
+//go:embed templates/*.js.tmpl
+var templateFS embed.FS
+
+type Generator struct {
+    tmpl   *template.Template
+    logger *slog.Logger
+}
+
+func NewGenerator(logger *slog.Logger) (*Generator, error) {
+    // 一次 ParseFS 编译所有模板 — 不用逐个 Parse()
+    tmpl, err := template.ParseFS(templateFS, "templates/*.js.tmpl")
+    if err != nil {
+        return nil, &TemplateError{Op: "parse", Err: err}  // fail-fast
+    }
+    return &Generator{tmpl: tmpl, logger: logger}, nil
+}
+
+func (g *Generator) renderTemplate(ctx RenderContext) (string, error) {
+    // 按 HookType 选择模板文件
+    var name string
+    switch ctx.HookType {
+    case "overload": name = "overload.js.tmpl"
+    case "override": name = "override.js.tmpl"
+    case "native":   name = "native.js.tmpl"
+    default:
+        return "", &TemplateError{Op: "render", Err: fmt.Errorf("unknown hook type")}
+    }
+
+    // strings.Builder 作为 io.Writer — 模板直接写进去
+    var buf strings.Builder
+    if err := g.tmpl.ExecuteTemplate(&buf, name, ctx); err != nil {
+        return "", &TemplateError{Op: "render", Name: name, Err: err}
+    }
+    return buf.String(), nil
+}</code></pre>
+
+<dl>
+  <dt>设计要点</dt>
+  <dd><code>//go:embed templates/*.js.tmpl</code> — 编译时 3 个模板文件嵌入二进制</dd>
+  <dd><code>template.ParseFS(fs, pattern)</code> — 一次调用编译所有匹配模板</dd>
+  <dd><code>ExecuteTemplate(&buf, name, ctx)</code> — 按模板名选择渲染，数据注入 RenderContext</dd>
+  <dd><code>strings.Builder</code> 实现 <code>io.Writer</code> — 模板自然输出到缓冲区</dd>
+  <dd><code>switch ctx.HookType</code> — 类型分发选择模板文件，跟 Phase 2 validator 一样</dd>
+  <dd>错误全用自定义 <code>TemplateError</code> 包装（Op/Name/Err）— fail-fast</dd>
+</dl>
+
 
 <!-- ============================================================ -->
 <!-- 二、Android 逆向轨道 -->

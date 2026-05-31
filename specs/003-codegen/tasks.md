@@ -68,10 +68,10 @@
 
 **独立测试**: 调用 `renderTemplate("overload.js.tmpl", renderCtx)` 返回包含 `Java.use()` 的 JS 字符串；native 模板返回 `Interceptor.attach()`
 
-- [ ] T014 [US2] 创建 `pkg/codegen/templates.go` — `//go:embed templates/*.js.tmpl` 内嵌模板，`NewGenerator(logger)` 调用 `template.ParseFS()` 编译，编译失败返回 `*TemplateError` (fail-fast)。`renderTemplate(name, ctx)` 内部方法使用 `strings.Builder` + `template.ExecuteTemplate()` 渲染单段 JS
-- [ ] T015 [US3] 在 `pkg/codegen/templates.go` 的 `renderTemplate()` 中处理 method_signature: 非空时注入 `{{.MethodSignature}}` 到 overload 调用，空时输出 `.overload()`
-- [ ] T016 [US4] 在 `pkg/codegen/templates.go` 的 `renderTemplate()` 中加入 native 类型分发: 当 HookType=="native" 时使用 native.js.tmpl 模板
-- [ ] T017 [US2] 创建 `pkg/codegen/templates_test.go` — table-driven: (1) NewGenerator 模板编译成功，(2) 3 种 HookType 各渲染为合法 JS 代码段，(3) method_signature 空/非空分支， (4) native 模板含 findModuleByName 检查
+- [x] T014 [US2] 创建 `pkg/codegen/templates.go` — `//go:embed templates/*.js.tmpl` 内嵌模板，`NewGenerator(logger)` 调用 `template.ParseFS()` 编译，编译失败返回 `*TemplateError` (fail-fast)。`renderTemplate(name, ctx)` 内部方法使用 `strings.Builder` + `template.ExecuteTemplate()` 渲染单段 JS
+- [x] T015 [US3] 在 `pkg/codegen/templates.go` 的 `renderTemplate()` 中处理 method_signature: 非空时注入 `{{.MethodSignature}}` 到 overload 调用，空时输出 `.overload()`
+- [x] T016 [US4] 在 `pkg/codegen/templates.go` 的 `renderTemplate()` 中加入 native 类型分发: 当 HookType=="native" 时使用 native.js.tmpl 模板
+- [x] T017 [US2] 创建 `pkg/codegen/templates_test.go` — table-driven: (1) NewGenerator 模板编译成功，(2) 3 种 HookType 各渲染为合法 JS 代码段，(3) method_signature 空/非空分支， (4) native 模板含 findModuleByName 检查
 
 **Checkpoint**: 模板引擎可独立使用 — 给定 HookTarget + RenderContext 可生成对应 JS 代码段
 

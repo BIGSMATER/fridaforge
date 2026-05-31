@@ -54,7 +54,7 @@ func main() {
 // html/template 输出: "if (a &lt; b)"  ← 语法错误！
 ```
 
-> 📝 补充于 Phase 4: 项目实际代码 — `pkg/codegen/templates.go` 中用 `template.ParseFS()` 从内嵌 FS 编译模板
+> 📝 项目实际代码：§1.7 Phase 4 展示了 `templates.go` 中 `//go:embed` + `template.ParseFS()` + `ExecuteTemplate()` 的完整调用链
 
 ### 1.2 embed.FS — 编译时文件内嵌
 
@@ -96,7 +96,7 @@ func main() {
 - 不支持 `..` 父目录引用
 - 不支持指向源文件目录之外的路径
 
-> 📝 补充于 Phase 4: 项目实际代码 — `pkg/codegen/templates.go` 中用 `//go:embed templates/*.js.tmpl` 内嵌 3 个模板
+> 📝 项目实际代码：§1.7 Phase 4 展示了完整的 embed.FS + ParseFS 组合
 
 ### 1.3 strings.Builder — 高效字符串拼接
 
@@ -359,7 +359,59 @@ type GenerateError struct {
 
 两者都实现 `Error()` + `Unwrap()` — 跟 M2 的 `DeviceError/SessionError/ScriptError` 一样的三明治模式。
 
-> 📝 补充于 Phase 4: 项目实际代码 — `pkg/codegen/templates.go` 中用 `strings.Builder` 累积各 Hook 渲染结果
+> 📝 项目实际代码：§1.7 Phase 4 展示了 strings.Builder 在 renderTemplate() 中的使用
+
+### 1.7 Phase 4 项目实际代码：templates.go — embed + Parse + Execute 三件套
+
+Phase 4 的核心是 `pkg/codegen/templates.go`——这是 `//go:embed`、`template.ParseFS`、`template.ExecuteTemplate` 三者首次在项目中组合使用。
+
+```go
+// pkg/codegen/templates.go — 你写的代码
+
+//go:embed templates/*.js.tmpl
+var templateFS embed.FS
+
+type Generator struct {
+    tmpl   *template.Template
+    logger *slog.Logger
+}
+
+func NewGenerator(logger *slog.Logger) (*Generator, error) {
+    // 一次 ParseFS 编译所有模板 — 不用逐个 Parse()
+    tmpl, err := template.ParseFS(templateFS, "templates/*.js.tmpl")
+    if err != nil {
+        return nil, &TemplateError{Op: "parse", Err: err}  // fail-fast
+    }
+    return &Generator{tmpl: tmpl, logger: logger}, nil
+}
+
+func (g *Generator) renderTemplate(ctx RenderContext) (string, error) {
+    // 按 HookType 选择模板文件
+    var name string
+    switch ctx.HookType {
+    case "overload": name = "overload.js.tmpl"
+    case "override": name = "override.js.tmpl"
+    case "native":   name = "native.js.tmpl"
+    default:
+        return "", &TemplateError{Op: "render", Err: fmt.Errorf("unknown hook type")}
+    }
+
+    // strings.Builder 作为 io.Writer — 模板直接写进去
+    var buf strings.Builder
+    if err := g.tmpl.ExecuteTemplate(&buf, name, ctx); err != nil {
+        return "", &TemplateError{Op: "render", Name: name, Err: err}
+    }
+    return buf.String(), nil
+}
+```
+
+**设计要点**：
+1. `//go:embed templates/*.js.tmpl` — 编译时 3 个模板文件嵌入二进制
+2. `template.ParseFS(fs, pattern)` — 一次调用编译所有匹配的模板，不需逐个 `Parse()`
+3. `ExecuteTemplate(&buf, name, ctx)` — 按模板名选择渲染，数据注入 RenderContext
+4. `strings.Builder` 实现了 `io.Writer` 接口 — 模板自然输出到缓冲区
+5. `switch ctx.HookType` — 类型分发选择模板文件，跟 Phase 2 validator 一样的模式
+6. 错误全用自定义 `TemplateError` 包装（带 Op/Name/Err ）— fail-fast
 
 ---
 
