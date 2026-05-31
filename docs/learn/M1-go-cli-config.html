@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M1 学习笔记：Go 语言基础与 CLI 命令行工具 — FridaForge</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --code-bg: #1c2128;
+    --code-border: #30363d;
+    --warn-bg: #21262d;
+    --warn-border: #d29922;
+    --tip-bg: #161b22;
+    --tip-border: #3fb950;
+    --note-bg: #161b22;
+    --note-border: #58a6ff;
+  }
+
+  @media print {
+    :root {
+      --bg: #fff;
+      --surface: #f6f8fa;
+      --text: #24292f;
+      --muted: #57606a;
+      --border: #d0d7de;
+    }
+    nav, .phase-nav { display: none; }
+    body { font-size: 11pt; }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--border); padding-bottom: .5rem; margin: 1.5rem 0 1rem; }
+  h2 { font-size: 1.5rem; margin: 2rem 0 1rem; padding-top: .5rem; border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+  h3 { font-size: 1.2rem; margin: 1.5rem 0 .75rem; }
+  h4 { font-size: 1.05rem; margin: 1.2rem 0 .5rem; color: var(--accent); }
+
+  p { margin: .75rem 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  blockquote {
+    border-left: 3px solid var(--border);
+    padding: .5rem 1rem;
+    margin: .75rem 0;
+    color: var(--muted);
+    background: var(--surface);
+    border-radius: 0 6px 6px 0;
+  }
+  blockquote p { margin: .25rem 0; }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.5rem 0;
+  }
+
+  ul, ol { padding-left: 1.5rem; margin: .5rem 0; }
+  li { margin: .25rem 0; }
+
+  nav.toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin: 1rem 0 2rem;
+  }
+  nav.toc h2 { font-size: 1.1rem; margin: 0 0 .75rem; padding: 0; border: none; }
+  nav.toc ol { padding-left: 1.5rem; }
+  nav.toc li { margin: .3rem 0; font-size: .92rem; }
+  nav.toc ol ol { font-size: .88rem; padding-left: 1.25rem; }
+
+  .phase-nav {
+    background: var(--surface);
+    border: 1px solid var(--tip-border);
+    border-radius: 6px;
+    padding: .75rem 1rem;
+    margin: .5rem 0 1.5rem;
+    font-size: .88rem;
+    color: var(--muted);
+  }
+  .phase-nav strong { color: var(--accent); }
+
+  .metadata {
+    color: var(--muted);
+    font-size: .88rem;
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+  .metadata dt { font-weight: 600; display: inline; }
+  .metadata dd { display: inline; margin-right: 1rem; }
+
+  .badge {
+    display: inline-block;
+    padding: .15rem .5rem;
+    border-radius: 2em;
+    font-size: .75rem;
+    font-weight: 600;
+    margin-right: .3rem;
+  }
+  .badge-go  { background: #00add81a; color: #00add8; border: 1px solid #00add840; }
+  .badge-rev { background: #f0883e1a; color: #f0883e; border: 1px solid #f0883e40; }
+  .badge-ai  { background: #8b5cf61a; color: #8b5cf6; border: 1px solid #8b5cf640; }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: .75rem 0;
+    font-size: .88rem;
+    line-height: 1.5;
+    position: relative;
+  }
+  pre code { font-family: "SF Mono", "Cascadia Code", "Fira Code", Menlo, monospace; }
+  code {
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", Menlo, monospace;
+    background: var(--code-bg);
+    padding: .15em .4em;
+    border-radius: 3px;
+    font-size: .9em;
+  }
+  pre code { background: none; padding: 0; border-radius: 0; }
+
+  pre[data-lang]::before {
+    content: attr(data-lang);
+    position: absolute;
+    top: 0; right: 0;
+    font-size: .72rem;
+    color: var(--muted);
+    padding: .2rem .6rem;
+    border-bottom-left-radius: 6px;
+    background: var(--surface);
+    border-left: 1px solid var(--code-border);
+    border-bottom: 1px solid var(--code-border);
+  }
+
+  details {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .75rem 1rem;
+    margin: .75rem 0;
+    background: var(--surface);
+  }
+  details[open] { background: var(--bg); }
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--accent);
+    user-select: none;
+  }
+  summary:hover { text-decoration: underline; }
+  details > *:not(summary) { margin-top: .5rem; }
+
+  aside {
+    padding: .75rem 1rem;
+    border-radius: 6px;
+    margin: .75rem 0;
+    font-size: .92rem;
+  }
+  aside.warn  { background: var(--warn-bg); border-left: 4px solid var(--warn-border); }
+  aside.tip   { background: var(--tip-bg); border-left: 4px solid var(--tip-border); }
+  aside.note  { background: var(--note-bg); border-left: 4px solid var(--note-border); }
+  aside::before {
+    display: block;
+    font-weight: 700;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .3rem;
+  }
+  aside.tip::before  { content: "💡 提示"; color: var(--tip-border); }
+  aside.warn::before { content: "⚠️ 注意"; color: var(--warn-border); }
+  aside.note::before { content: "📝 笔记"; color: var(--note-border); }
+
+  dl { margin: .75rem 0; }
+  dt { font-weight: 600; color: var(--accent); margin-top: .5rem; }
+  dd { margin-left: 1.5rem; color: var(--muted); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: .75rem 0;
+    font-size: .9rem;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: .5rem .75rem;
+    text-align: left;
+  }
+  th { background: var(--surface); font-weight: 600; }
+  tr:nth-child(even) { background: var(--surface); }
+  caption {
+    font-weight: 600;
+    margin-bottom: .25rem;
+    text-align: left;
+    font-size: .92rem;
+  }
+
+  kbd {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: .1em .4em;
+    font-size: .85em;
+    box-shadow: 0 1px 0 var(--border);
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.2rem; }
+    pre { font-size: .78rem; }
+  }
+</style>
+</head>
+<body>
+
+<h1>M1 学习笔记：Go 语言基础与 CLI 命令行工具</h1>
+
+<dl class="metadata">
+  <dt>Milestone</dt><dd>M1</dd>
+  <dt>状态</dt><dd>已完成</dd>
+  <dt>三轨</dt><dd><span class="badge badge-go">Go</span> <span class="badge badge-rev">逆向</span> <span class="badge badge-ai">AI</span></dd>
+</dl>
+
+<nav class="toc" aria-label="目录">
+  <h2>📑 目录</h2>
+  <ol>
+    <li><a href="#go-track">Go 语言轨道</a>
+      <ol>
+        <li><a href="#go-pkg">package 与 import — Go 的代码组织</a></li>
+        <li><a href="#go-struct">struct + tag — Go 的数据建模</a></li>
+        <li><a href="#go-error">if err != nil — Go 的错误哲学</a></li>
+        <li><a href="#go-collection">slice 与 map — Go 的集合类型</a></li>
+        <li><a href="#go-testing">测试基础</a></li>
+        <li><a href="#go-cobra">cobra.Command — CLI 命令树</a></li>
+        <li><a href="#go-yaml">yaml.v3 反序列化</a></li>
+        <li><a href="#go-interface">接口（interface）与方法接收者</a></li>
+        <li><a href="#go-layout">Go 项目标准布局</a></li>
+        <li><a href="#go-modules">Go 模块系统 — go.mod / go.sum</a></li>
+        <li><a href="#go-lint">golangci-lint — 代码质量工具链</a></li>
+        <li><a href="#go-makefile">Makefile 在 Go 项目中的角色</a></li>
+        <li><a href="#go-enum">Go 枚举模式 — type X string + const</a></li>
+        <li><a href="#go-errordetail">Go error 接口深入 — 自定义错误类型</a></li>
+        <li><a href="#go-cobra-adv">cobra 进阶 — 钩子、静默模式、标记文件</a></li>
+        <li><a href="#go-whitebox">白盒测试 vs 黑盒测试</a></li>
+        <li><a href="#go-escape">逃逸分析 — 为什么 return &amp;ve 安全</a></li>
+        <li><a href="#go-init">init() — Go 的自动初始化函数</a></li>
+        <li><a href="#go-pointer">yaml.Unmarshal — 为什么必须传指针</a></li>
+        <li><a href="#go-compile-iface">var _ Interface = (*Type)(nil)</a></li>
+        <li><a href="#go-context">context.Context — 请求生命周期</a></li>
+        <li><a href="#go-tabwriter">text/tabwriter — 内置表格输出</a></li>
+      </ol>
+    </li>
+    <li><a href="#rev-track">逆向/底层轨道</a>
+      <ol>
+        <li><a href="#rev-yaml">YAML 字段的逆向语义</a></li>
+        <li><a href="#rev-hooktype">Hook 类型的逆向差异</a></li>
+        <li><a href="#rev-arch">Frida 架构与设备通信原理</a></li>
+      </ol>
+    </li>
+    <li><a href="#ai-track">AI 编程范式轨道</a>
+      <ol>
+        <li><a href="#ai-speckit">SpecKit 工作流 — M1 完整回顾</a></li>
+        <li><a href="#ai-specvsvibe">Spec Coding vs Vibe Coding</a></li>
+        <li><a href="#ai-break">本阶段的 AI 认知突破</a></li>
+        <li><a href="#ai-retro">M1 工作流反思（供 M2 参考）</a></li>
+      </ol>
+    </li>
+    <li><a href="#go-summary">本阶段 Go 知识点汇总</a></li>
+    <li><a href="#appendix">附录 A：独立可运行迷你代码示例</a></li>
+  </ol>
+</nav>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 一、Go 语言轨道 -->
+<!-- ============================================================ -->
+
+<h2 id="go-track">一、Go 语言轨道</h2>
+
+<!-- 1.1 -->
+<h3 id="go-pkg">1.1 <code>package</code> 与 <code>import</code> — Go 的代码组织</h3>
+
+<p>Go 的代码组织单元是 <strong>package</strong>。每个 <code>.go</code> 文件第一行声明自己属于哪个 package。同一个目录下的所有 <code>.go</code> 文件必须属于同一个 package。</p>
+
+<pre data-lang="go"><code>// pkg/spec/types.go
+package spec  // ← 包名和目录名一致（Go 惯例）
+
+import (
+    "fmt"                  // 标准库
+    "gopkg.in/yaml.v3"     // 第三方库
+)</code></pre>
+
+<p><strong>关键规则：大写开头 = 导出（public），小写开头 = 包内私有。</strong></p>
+
+<p>Go 没有 <code>public</code>/<code>private</code> 关键字——全靠首字母大小写控制可见性。这是 Go 最独特的语言设计之一。</p>
+
+<pre data-lang="go"><code>type HookSpec struct {     // 导出：其他包可以用 spec.HookSpec
+    AppPackage string      // 导出字段（大写）
+    hooks      []HookTarget // 私有字段（小写），其他包看不见
+}</code></pre>
+
+<!-- 1.2 -->
+<h3 id="go-struct">1.2 <code>struct</code> + tag — Go 的数据建模</h3>
+
+<p>Go 没有类（class），用 <code>struct</code> 组织数据。<strong>struct tag</strong>（结构体标签）是附加在字段上的元数据，用反引号 <code>`</code> 包裹：</p>
+
+<pre data-lang="go"><code>type HookSpec struct {
+    AppPackage string       `yaml:"app_package"`  // ← struct tag
+    Hooks      []HookTarget `yaml:"hooks"`
+}</code></pre>
+
+<p><code>yaml:"app_package"</code> 告诉 yaml.v3：<strong>「YAML 文件里的 <code>app_package</code> 键 → 映射到这个 Go 字段」</strong>。没有 tag 的话，yaml.v3 会按字段名小写匹配——<code>AppPackage</code> 变成 <code>apppackage</code>，对不上 YAML 里的 <code>app_package</code>，导致解析为默认零值。</p>
+
+<p><strong>常见 tag 类型</strong>：<code>json:"name"</code>（JSON 序列化）、<code>yaml:"name"</code>（YAML 序列化）、<code>xml:"name"</code>（XML 序列化）。</p>
+
+<!-- 1.3 -->
+<h3 id="go-error">1.3 <code>if err != nil</code> — Go 的错误哲学</h3>
+
+<p>Go 没有 try-catch。函数返回 <code>(result, error)</code> 元组，<strong>每次调用都必须显式检查错误</strong>：</p>
+
+<pre data-lang="go"><code>data, err := os.ReadFile(path)
+if err != nil {
+    return nil, fmt.Errorf("无法读取文件 %s: %w", path, err)
+}</code></pre>
+
+<p><strong><code>%w</code> 动词</strong>（Go 1.13+）：将原始 error 包装进新 error 中，形成错误链。外部可以通过 <code>errors.Is()</code> / <code>errors.As()</code> 逐层解包，判断错误来源。宪法 2.3 强制要求使用 <code>%w</code> 包装上下文。</p>
+
+<!-- 1.4 -->
+<h3 id="go-collection">1.4 <code>slice</code> 与 <code>map</code> — Go 的集合类型</h3>
+
+<pre data-lang="go"><code>// slice — 动态数组（底层是数组 + 长度 + 容量）
+hooks := []HookTarget{
+    {ClassName: "com.example.Foo", MethodName: "bar", HookType: "overload"},
+    {ClassName: "com.example.Baz", MethodName: "qux", HookType: "replace"},
+}
+
+// map — 无序键值对
+validTypes := map[string]bool{
+    "overload": true,
+    "replace":  true,
+}</code></pre>
+
+<p><strong>slice vs 数组</strong>：<code>[3]int</code> 是固定长度数组（类型的一部分），<code>[]int</code> 是 slice（可变长度）。Go 中 99% 的场景用 slice。</p>
+
+<!-- 1.5 -->
+<h3 id="go-testing">1.5 测试基础 — 为什么每个文件都配一个 <code>_test.go</code></h3>
+
+<p><strong>测试是什么</strong>：用代码来验证另一段代码是否正确。不是"编译通过 = 正确"——编译只能查语法，不能查逻辑。</p>
+
+<p><strong>为什么需要测试</strong>：你改了 A 函数，可能不小心破坏了 B 函数。没有测试 = 每次改代码都要手动重新验证所有功能 = 不可能做到。有测试 = 跑 <code>go test</code>，0.5 秒知道有没有破坏旧功能。</p>
+
+<p><strong>Go 的测试三条规则</strong>：</p>
+
+<ol>
+  <li><strong>文件名 <code>*_test.go</code></strong>：<code>validator.go</code> 配 <code>validator_test.go</code>。<code>go build</code> 会跳过 <code>_test.go</code> 文件——测试代码不进二进制。</li>
+  <li><strong>函数名 <code>Test</code> 开头</strong>：<code>func TestValidate(t *testing.T)</code>。<code>go test</code> 自动找到所有 <code>Test</code> 开头的函数运行。</li>
+  <li><strong>参数 <code>*testing.T</code></strong>：这是测试的"遥控器"——<code>t.Error("失败")</code> 记录失败继续跑，<code>t.Fatal("致命")</code> 记录失败立即停，<code>t.Run("子测试", ...)</code> 创建独立子测试。</li>
+</ol>
+
+<p><strong>在本项目测了什么（5 类）</strong>：</p>
+
+<table>
+  <thead>
+    <tr><th>测试文件</th><th>测什么</th><th>为什么</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>types_test.go</code></td><td>常量值是否正确</td><td>常量拼错编译不报错，只有测试能抓</td></tr>
+    <tr><td><code>errors_test.go</code></td><td><code>FieldError.Error()</code> 输出格式</td><td>如果格式变了，CLI 输出也乱</td></tr>
+    <tr><td><code>validator_test.go</code></td><td>8 种规格各自的校验结果</td><td>如果你不小心改了逻辑，测试立刻失败</td></tr>
+    <tr><td><code>loader_test.go</code></td><td>读 YAML 文件 → 解析结构体</td><td>文件 I/O + YAML 解析两步都要对</td></tr>
+    <tr><td><code>manager_test.go</code></td><td>桩实现返回的数据正确</td><td>M2 替换实现时，桩是参考基准</td></tr>
+  </tbody>
+</table>
+
+<p><strong>TDD 的节奏（本项目全程使用）</strong>：</p>
+
+<pre><code>1. 写桩 → 2. 写测试 → 3. 跑测试(FAIL) → 4. 写实现 → 5. 跑测试(PASS) → 6. 提交</code></pre>
+
+<p>这个循环确保：每一个实现完成的函数，都有测试在盯着它。</p>
+
+<p><strong>覆盖率</strong>：<code>go test -cover</code> 显示测试执行到了生产代码百分之多少的语句。100% = 每行代码至少被某个测试执行过。不是说你测全了，只是说没有"写了但从来没跑过的死代码"。</p>
+
+<h4>Table-Driven 模式</h4>
+
+<p>宪法 2.5 强制要求。核心理念：<strong>把输入和期望输出放在一个表（slice）里，循环执行</strong>：</p>
+
+<pre data-lang="go"><code>func TestValidate(t *testing.T) {
+    tests := []struct {        // 匿名 struct 做测试用例
+        name    string         // 用例名
+        spec    HookSpec       // 输入
+        wantErr bool           // 期望是否有错
+        errMsg  string         // 期望的错误消息片段
+    }{
+        {"合法输入", validSpec, false, ""},
+        {"空 app_package", emptyPkgSpec, true, "app_package"},
+        {"非法 hook_type", badTypeSpec, true, "hook_type"},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {   // t.Run 让每个用例独立运行
+            err := Validate(&amp;tt.spec)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+            }
+        })
+    }
+}</code></pre>
+
+<p><code>t.Run()</code> 创建子测试——每个用例独立运行，失败不会影响其他用例。用 <code>go test -v</code> 可以看到每个子测试的结果。</p>
+
+<!-- 1.6 -->
+<h3 id="go-cobra">1.6 <code>cobra.Command</code> — CLI 命令树</h3>
+
+<p>Cobra 是 Go 生态的事实标准 CLI 框架（被 kubectl、hugo、GitHub CLI 使用）。用<strong>树形结构</strong>组织命令：</p>
+
+<pre data-lang="go"><code>// 根命令
+var rootCmd = &amp;cobra.Command{
+    Use:   "fridaforge",
+    Short: "声明式 Frida 脚本工程化平台",
+    PersistentPreRun: func(cmd *cobra.Command, args []string) {
+        // 每个子命令执行前都会先走这里
+        checkEthicalDisclaimer()
+    },
+}
+
+// 子命令
+var specCmd = &amp;cobra.Command{
+    Use:   "spec",
+    Short: "Hook 规格文件操作",
+}
+
+var validateCmd = &amp;cobra.Command{
+    Use:   "validate [文件]",
+    Short: "校验 Hook 规格 YAML 文件",
+    Args:  cobra.ExactArgs(1),  // 必须有且只有一个参数
+    RunE: func(cmd *cobra.Command, args []string) error {
+        return runValidate(args[0])
+    },
+}
+
+func init() {
+    rootCmd.AddCommand(specCmd)      // spec 挂在 root 下
+    specCmd.AddCommand(validateCmd)  // validate 挂在 spec 下
+}</code></pre>
+
+<p><strong>关键概念</strong>：</p>
+<ul>
+  <li><code>RunE</code> vs <code>Run</code>：<code>RunE</code> 返回 error，cobra 自动打印；<code>Run</code> 不返回 error</li>
+  <li><code>PersistentPreRun</code>：对所有子命令生效的前置钩子</li>
+  <li><code>Args</code>：参数校验器，<code>cobra.ExactArgs(1)</code> 表示严格一个参数</li>
+  <li>cobra 自动生成 <code>--help</code> 输出，无需手动编写</li>
+</ul>
+
+<!-- 1.7 -->
+<h3 id="go-yaml">1.7 <code>yaml.v3</code> 反序列化</h3>
+
+<pre data-lang="go"><code>func LoadSpec(path string) (*spec.HookSpec, error) {
+    data, err := os.ReadFile(path)       // 读文件全部内容
+    if err != nil {
+        return nil, fmt.Errorf("读取文件失败: %w", err)
+    }
+
+    var s spec.HookSpec
+    err = yaml.Unmarshal(data, &amp;s)       // 反序列化：字节 → 结构体
+    if err != nil {
+        return nil, fmt.Errorf("YAML 解析失败: %w", err)
+    }
+
+    return &amp;s, nil  // 返回指针，避免大结构体拷贝
+}</code></pre>
+
+<p><code>yaml.Unmarshal(data, &amp;s)</code> 中 <code>&amp;s</code> 是取地址——Go 中修改外部变量<strong>必须传指针</strong>，否则修改的是副本。yaml.v3 根据 struct tag 做字段映射。</p>
+
+<!-- 1.8 -->
+<h3 id="go-interface">1.8 接口（interface）与方法接收者 — Go 的多态</h3>
+
+<h4>1.8.0 接口到底解决什么问题 —— 用 FridaForge 自己的代码讲</h4>
+
+<p>先不用管"鸭子类型"、"隐式满足"这些术语。只看我们项目里的一个真实问题：</p>
+
+<p><strong>M1 的需求</strong>：<code>fridaforge device list</code> 要显示设备列表。</p>
+
+<p><strong>矛盾</strong>：真实设备列表需要调用 Frida（<code>frida-core</code>）才能获取。但 M1 明确规定<strong>不能碰 Frida</strong>——那是 M2 的事。</p>
+
+<p><strong>不用接口的做法</strong>——把数据硬编码在 CLI 命令里：</p>
+
+<pre data-lang="go"><code>// cmd/fridaforge/device.go
+func runDeviceList(...) {
+    devices := []Device{
+        {ID: "emulator-5554", Name: "Android Emulator", ConnectType: "emulator"},
+    }
+    // 输出...
+}</code></pre>
+
+<p>M2 时要改成真实 Frida 调用，就要<strong>找到这个函数、改代码、重新测试</strong>。</p>
+
+<p><strong>用接口的做法</strong>——写一个"合同"，谁签了合同谁负责提供设备数据：</p>
+
+<pre data-lang="go"><code>// 1. 定义合同（pkg/device/manager.go）
+type DeviceLister interface {
+    ListDevices(ctx context.Context) ([]Device, error)
+}
+
+// 2. M1 签合同——返回硬编码数据
+type StubDeviceLister struct{}
+func (s *StubDeviceLister) ListDevices(ctx context.Context) ([]Device, error) {
+    return []Device{{...}}, nil
+}
+
+// 3. 用户代码只看合同，不关心谁签的（cmd/fridaforge/device.go）
+func runDeviceList(lister DeviceLister) {
+    devices, _ := lister.ListDevices(ctx)
+    // 输出...
+}</code></pre>
+
+<p><strong>M2 时</strong>：新写一个实现，M1 的代码<strong>一行不改</strong>：</p>
+
+<pre data-lang="go"><code>// M2 新文件 pkg/frida/lister.go
+type RealDeviceLister struct{}
+func (r *RealDeviceLister) ListDevices(ctx context.Context) ([]Device, error) {
+    return frida.EnumerateDevices()  // 真正调 Frida
+}</code></pre>
+
+<aside class="tip">
+  <p><strong>接口的本质一句话</strong>：一份合同，多个签约方。调用者只看合同，不管谁签约。</p>
+</aside>
+
+<p><strong>比喻</strong>：</p>
+
+<pre><code>合同（DeviceLister）
+────────────────────────
+签了这份合同的人，必须能
+"ListDevices，返回设备列表"
+────────────────────────
+
+M1 签约方（StubDeviceLister）      M2 签约方（RealDeviceLister）
+ListDevices → 返回硬编码假数据      ListDevices → 通过 Frida 获取真数据</code></pre>
+
+<p>你订外卖时只关心"饭会送到"，不关心外卖员是走路还是骑电动车。合同 = "送餐"，签约方 = "走路/骑电动车"——你这边点餐的流程不变。</p>
+
+<aside class="note">
+  <p><strong>什么时候需要接口？什么时候不需要？</strong></p>
+  <table>
+    <thead><tr><th>功能</th><th>是否用接口</th><th>原因</th></tr></thead>
+    <tbody>
+      <tr><td><code>device list</code></td><td>✅ 用了 <code>DeviceLister</code></td><td>M1 桩、M2 真实 Frida——有两个实现</td></tr>
+      <tr><td><code>spec validate</code></td><td>❌ 没用接口</td><td>M1 到 M7 都读本地文件——只有一个实现</td></tr>
+    </tbody>
+  </table>
+  <p>只有一个实现时，不需要接口。接口的价值在于<strong>"同一行为有多个实现需要互相替换"</strong>。</p>
+</aside>
+
+<h4>1.8.1 核心概念：隐式满足（Structural Typing）</h4>
+
+<p>Go 的接口是<strong>隐式满足</strong>的——这是它与 Java、C#、TypeScript 最大的区别之一。</p>
+
+<p><strong>对比理解</strong>：</p>
+
+<pre data-lang="java"><code>// Java：显式声明
+interface DeviceLister {
+    List&lt;Device&gt; listDevices();
+}
+class StubDeviceLister implements DeviceLister {  // ← 必须写 implements
+    @Override
+    List&lt;Device&gt; listDevices() { ... }
+}</code></pre>
+
+<pre data-lang="go"><code>// Go：隐式满足 —— 没有 implements 关键字
+type DeviceLister interface {
+    ListDevices(ctx context.Context) ([]Device, error)
+}
+
+type StubDeviceLister struct{}
+
+// StubDeviceLister 有和接口一模一样的方法，就自动实现了该接口
+func (s *StubDeviceLister) ListDevices(ctx context.Context) ([]Device, error) {
+    return []Device{...}, nil
+}</code></pre>
+
+<p><strong>没有 <code>implements</code>、没有 <code>@Override</code>、没有 <code>extends</code></strong>。Go 的思路是：<strong>「如果你的方法集合跟我的接口要求完全匹配，那你就实现了这个接口」</strong>——不需要你显式声明。</p>
+
+<p>这就是所谓的 <strong>duck typing（鸭子类型）</strong>："如果它走起来像鸭子、叫起来像鸭子，那它就是鸭子。" 在 Go 里："如果它有接口要求的全部方法，那它就实现了该接口。"</p>
+
+<h4>1.8.2 隐式满足是怎么工作的？</h4>
+
+<p>编译时，Go 编译器做<strong>结构类型检查</strong>：</p>
+
+<pre data-lang="go"><code>func PrintDevices(lister DeviceLister) {  // 参数类型是接口
+    devices, _ := lister.ListDevices(...) // 只关心接口的方法
+    fmt.Println(devices)
+}
+
+func main() {
+    stub := &amp;StubDeviceLister{}           // 具体类型
+    PrintDevices(stub)                    // ✅ 编译器自动检查：
+                                          // StubDeviceLister 有 ListDevices 方法吗？
+                                          // 有 → 自动当做 DeviceLister 传进去
+}</code></pre>
+
+<p>编译器在这里做的检查等价于：<strong>「<code>StubDeviceLister</code> 的方法集合中，是否包含了 <code>DeviceLister</code> 接口要求的所有方法？」</strong> 如果没有，编译报错——不是在运行时才暴露。</p>
+
+<h4>1.8.3 没有 <code>implements</code> 那会不会不小心实现错了？</h4>
+
+<p>这是对 Go 新手来说最大的疑问。答案是：<strong>编译器会在你传值的地方检查</strong>。</p>
+
+<pre data-lang="go"><code>// 编译时强制检查的一个技巧：
+var _ DeviceLister = (*StubDeviceLister)(nil)
+// 这行代码：把 nil 指针转为 *StubDeviceLister，然后赋值给 DeviceLister 变量
+// 如果 StubDeviceLister 没有实现接口 → 编译报错
+// `_` 是 Go 的空白标识符（忽略这个值），仅用于编译时类型检查</code></pre>
+
+<p>这行代码不产生任何运行时成本，只是编译时验证。很多 Go 开源项目（如 Docker、Kubernetes）都用这个模式来确保类型实现了接口。</p>
+
+<h4>1.8.4 为什么 Go 要这样设计？</h4>
+
+<p>Java/C# 的 <code>implements</code> 是<strong>声明式</strong>的：「我声明我实现了这个接口」。Go 的隐式满足是<strong>结构式</strong>的：「编译器检查你是否有这些方法」。</p>
+
+<p>优势：</p>
+<ol>
+  <li><strong>松耦合</strong>：定义接口的包不需要知道有哪些实现——完全解耦。你在 <code>pkg/device/</code> 定义接口，M2 的人可以在另一个包 <code>pkg/frida/</code> 写实现，它们之间没有 import 依赖</li>
+  <li><strong>方便测试</strong>：在生产代码里传真实实现，测试里传桩——只要满足相同的接口就可以，无需修改生产代码</li>
+  <li><strong>"小接口"哲学</strong>：Go 鼓励定义只有 1-3 个方法的微型接口，隐式满足让这种设计零负担</li>
+</ol>
+
+<h4>1.8.5 示例：M1 中的接口使用模式</h4>
+
+<pre data-lang="go"><code>// 1. 定义接口（在 pkg/device/manager.go）
+type DeviceLister interface {
+    ListDevices(ctx context.Context) ([]Device, error)
+}
+
+// 2. 桩实现（同一个文件，方便测试）
+type StubDeviceLister struct{}
+
+func (s *StubDeviceLister) ListDevices(ctx context.Context) ([]Device, error) {
+    return []Device{
+        {ID: "emulator-5554", Name: "Android Emulator 5554", ConnectType: "emulator"},
+    }, nil
+}
+
+// 3. 使用接口（在 cmd/fridaforge/device.go）
+//    构造函数接收接口，不关心具体是哪个实现
+func NewDeviceListCmd(lister DeviceLister) *cobra.Command {
+    return &amp;cobra.Command{
+        Use: "list",
+        RunE: func(cmd *cobra.Command, args []string) error {
+            devices, err := lister.ListDevices(context.Background())
+            // ... 处理输出
+        },
+    }
+}</code></pre>
+
+<p><strong>关键设计模式</strong>：依赖注入。<code>NewDeviceListCmd</code> 接收 <code>DeviceLister</code> 接口而不是具体的 <code>StubDeviceLister</code>。这样：</p>
+<ul>
+  <li>M1：传入 <code>&amp;StubDeviceLister{}</code>，返回桩数据</li>
+  <li>M2：传入 <code>&amp;FridaDeviceLister{}</code>，连接真实 Frida</li>
+  <li>测试：传入自定义 mock，测试不同场景</li>
+  <li><strong>完全不需要修改 <code>NewDeviceListCmd</code> 函数的代码</strong></li>
+</ul>
+
+<h4>1.8.6 方法接收者 — Go 的 <code>this</code></h4>
+
+<pre data-lang="go"><code>// (s *StubDeviceLister) 是方法接收者。Go 没有 this 关键字。
+func (s *StubDeviceLister) ListDevices(ctx context.Context) ([]Device, error) {
+    // s 就是方法所属的实例
+}</code></pre>
+
+<p>你可以把接收者理解为其他语言的 <code>this</code>，但 Go 要求你<strong>显式声明</strong>——写在哪里、叫什么名字，完全由你决定。</p>
+
+<p><strong>指针接收者 vs 值接收者</strong>：</p>
+
+<pre data-lang="go"><code>func (s *StubDeviceLister) Foo() { }  // 指针接收者：可以修改 s 的字段
+func (s StubDeviceLister) Foo() { }   // 值接收者：操作的是副本，不能修改原对象</code></pre>
+
+<h4>1.8.7 关键陷阱：混用指针/值接收者时的接口实现</h4>
+
+<p>Go <strong>允许</strong>在同个类型上混用指针接收者和值接收者：</p>
+
+<pre data-lang="go"><code>type Foo struct{ val int }
+
+func (f *Foo) Set(v int) { f.val = v }    // 指针接收者
+func (f Foo) Get() int    { return f.val } // 值接收者 — 混用，编译通过</code></pre>
+
+<p>但是！<strong>指针类型和值类型的方法集不同，这会影响接口实现</strong>：</p>
+
+<dl>
+  <dt>Go 语言规定</dt>
+  <dd>类型 <code>T</code>（值）的方法集 = <strong>只有值接收者的方法</strong></dd>
+  <dd>类型 <code>*T</code>（指针）的方法集 = <strong>全部方法（指针接收者 + 值接收者）</strong></dd>
+</dl>
+
+<pre data-lang="go"><code>type MyInterface interface {
+    Set(int)
+    Get() int
+}
+
+// Foo 上混用了指针和值接收者
+func (f *Foo) Set(v int) { f.val = v }    // 指针接收者
+func (f Foo) Get() int    { return f.val } // 值接收者
+
+var v MyInterface
+v = &amp;Foo{}  // ✅ 编译通过：*Foo 有全部方法
+v = Foo{}   // ❌ 编译错误：Foo（值）没有 Set 方法——因为 Set 需要指针接收者</code></pre>
+
+<p><strong>结论不是"Go 不允许混用"</strong>——Go 允许。但混用会导致只有指针类型 <code>*T</code> 能实现接口，值类型 <code>T</code> 不行，容易踩坑。</p>
+
+<aside class="tip">
+  <p><strong>最佳实践</strong>：统一用一种。99% 的情况下用<strong>指针接收者</strong>：</p>
+  <ul>
+    <li>需要修改接收者 → 必须用指针</li>
+    <li>接收者很大 → 指针避免拷贝</li>
+    <li>接收者是 <code>nil</code> 也有意义（桩等）→ 指针</li>
+    <li>接收者很小且绝不变异 → 值接收者也可以（如 <code>time.Time</code> 这样的值类型）</li>
+  </ul>
+</aside>
+
+<pre data-lang="go"><code>type StubDeviceLister struct{}
+
+// 全部用指针接收者，一致
+func (s *StubDeviceLister) ListDevices(ctx context.Context) ([]Device, error) {
+    return []Device{
+        {ID: "emulator-5554", Name: "Android Emulator", ConnectType: "emulator"},
+    }, nil
+}</code></pre>
+
+<!-- 1.9 -->
+<h3 id="go-layout">1.9 Go 项目标准布局</h3>
+
+<pre><code>cmd/fridaforge/   # 可执行文件入口（每个子目录 = 一个二进制文件）
+pkg/config/       # 可复用的库代码（按领域划分）
+pkg/spec/         # 数据类型定义
+pkg/device/       # 设备抽象层</code></pre>
+
+<ul>
+  <li><code>cmd/</code>：一个目录一个 <code>main.go</code>，编译产出一个二进制</li>
+  <li><code>pkg/</code>：可以被外部项目 import 的公共库代码</li>
+  <li>测试文件 <code>*_test.go</code> 与源码同目录（Go 惯例）</li>
+</ul>
+
+<!-- 1.10 -->
+<h3 id="go-modules">1.10 Go 模块系统 — go.mod / go.sum / indirect</h3>
+
+<p>Go 的依赖管理通过模块（module）完成。核心文件是 <code>go.mod</code>：</p>
+
+<pre data-lang="go"><code>module github.com/bigsmater/fridaforge   // ← 模块根路径
+
+go 1.25.2                                 // ← Go 版本要求
+
+require (
+    github.com/spf13/cobra v1.10.2        // ← 直接依赖
+    gopkg.in/yaml.v3 v3.0.1 // indirect   // ← 间接依赖
+)</code></pre>
+
+<p><strong><code>go.mod</code> vs <code>go.sum</code></strong>：</p>
+
+<table>
+  <thead><tr><th>文件</th><th>作用</th><th>类比</th></tr></thead>
+  <tbody>
+    <tr><td><code>go.mod</code></td><td>声明需要哪些依赖和版本范围</td><td><code>package.json</code></td></tr>
+    <tr><td><code>go.sum</code></td><td>锁定每个依赖的精确哈希值（防篡改）</td><td><code>package-lock.json</code></td></tr>
+  </tbody>
+</table>
+
+<p>Go 没有独立的 lockfile 格式——<code>go.sum</code> 记录的是每个依赖的 SHA256 哈希，用于完整性校验。如果远程仓库的 <code>go.sum</code> 和本地不一致，<code>go mod tidy</code> 会报错——防止供应链攻击。</p>
+
+<p><strong><code>// indirect</code> 标记</strong>：</p>
+
+<p>这是一个 Go 新手上路最常见的困惑。<code>// indirect</code> 表示这个依赖<strong>还没有被任何 <code>.go</code> 文件直接 import</strong>。它是通过 <code>go get</code> 手动添加的，或者被另一个依赖间接需要。</p>
+
+<p><strong>关键行为</strong>：一旦你在代码里写了 <code>import "gopkg.in/yaml.v3"</code>，然后跑 <code>go mod tidy</code>，<code>// indirect</code> 标记会自动消失。这体现了 Go 的"用进废退"哲学——你不用它，它就不算第一公民。</p>
+
+<p><strong>GOPROXY — Go 模块代理</strong>：</p>
+
+<p>Go 默认从 <code>proxy.golang.org</code> 下载依赖，但国内经常超时。解决方法：</p>
+
+<pre data-lang="bash"><code>go env -w GOPROXY=https://goproxy.cn,direct</code></pre>
+
+<p><code>direct</code> 是回退机制：如果代理没有这个模块（比如私有仓库），就直连源仓库。常用的国内 Go 代理：</p>
+<ul>
+  <li><code>goproxy.cn</code> — 七牛维护</li>
+  <li><code>goproxy.io</code> — 社区维护</li>
+</ul>
+
+<p><strong>模块路径解析 —— import 长得像 URL 但不用联网</strong>：</p>
+
+<p>初学 Go 最常见的困惑：写了 <code>import "github.com/bigsmater/fridaforge/pkg/config"</code>，代码还没推到 GitHub 上——会不会编译失败？</p>
+
+<p><strong>不会。Go 编译器不访问 GitHub 来解析自己的包。</strong></p>
+
+<p>判断逻辑很简单：</p>
+
+<pre data-lang="go"><code>// go.mod 第一行：
+module github.com/bigsmater/fridaforge   // ← 模块根
+
+// import 路径判断：
+import "github.com/bigsmater/fridaforge/pkg/config"
+//      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 匹配模块根 → 本地找！
+//      go.mod 所在目录 + pkg/config =  /home/.../fridaforge/pkg/config/*.go
+
+import "github.com/spf13/cobra"
+//      ^^^^^^^^^^^^^^^^^^^^ 不匹配模块根 → 外部依赖 → 通过 GOPROXY / GitHub 下载</code></pre>
+
+<aside class="tip">
+  <p><strong>只要 <code>go.mod</code> 在项目根目录，项目内所有子包的 import 都从本地解析。</strong> GitHub 推没推上去完全不相关。</p>
+</aside>
+
+<p>为什么模块名要用 <code>github.com/bigsmater/fridaforge</code>？因为 Go 模块系统的设计：<strong>模块名 = 下载地址</strong>。用这个格式，将来别人 import 你的包时 Go 知道去哪里下载。用 <code>module banana</code> 也完全合法，只是没法公开分享。</p>
+
+<details>
+  <summary>为什么计划了 viper 但最终没用</summary>
+  <p>milestones.md 和最初 plan.md 都计划 M1 使用 viper 做配置绑定。实际代码中 <code>LoadSpec</code> 直接用 <code>os.ReadFile</code> + <code>yaml.Unmarshal</code>，没有 import viper。</p>
+  <p>原因：viper 的核心价值在"配置合并"——从多个来源（文件、环境变量、命令行参数）读取配置并按优先级合并。M1 的 <code>spec validate</code> 只做"给定一个文件路径 → 校验它"，不需要多来源合并。viper 在这里是杀鸡用牛刀——<code>os.ReadFile</code> 就够了。</p>
+  <p>M2+ 需要使用全局配置文件（<code>~/.fridaforge/config.yaml</code>）或环境变量覆盖时，viper 会被引入。届时教学文档会补充 viper 的使用方式。</p>
+</details>
+
+<!-- 1.11 -->
+<h3 id="go-lint">1.11 golangci-lint — Go 的代码质量工具链</h3>
+
+<p>Go 有三层代码检查，逐层深入：</p>
+
+<table>
+  <thead>
+    <tr><th>工具</th><th>检查内容</th><th>用途</th><th>宪法要求</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>gofmt</code></td><td>代码格式（空格、缩进、换行）</td><td>统一风格</td><td>强制 (2.1)</td></tr>
+    <tr><td><code>go vet</code></td><td>可疑代码（无法到达的代码、错误格式字符串）</td><td>静态分析</td><td>强制 (2.1)</td></tr>
+    <tr><td><code>golangci-lint</code></td><td>代码质量（未处理 error、未使用变量、拼写）</td><td>深度检查</td><td>强制 (2.1)</td></tr>
+  </tbody>
+</table>
+
+<p><strong><code>.golangci.yml</code> 配置结构</strong>：</p>
+
+<pre data-lang="yaml"><code>linters:
+  enable:              # 显式启用的 linter
+    - errcheck         # 检查忽略的 error
+    - gofmt            # 格式检查
+    - staticcheck      # 深度静态分析
+    - misspell         # 拼写检查
+
+issues:
+  exclude-use-default: false  # 不跳过默认规则（更严格）
+  max-issues-per-linter: 0    # 0 表示不设上限
+
+run:
+  timeout: 3m          # 超时 3 分钟
+  tests: true           # 测试代码也检查</code></pre>
+
+<p><strong><code>errcheck</code></strong> 对应宪法 2.3 "永远不要忽略 error 返回值"。如果你写了 <code>fn()</code> 而没处理返回值中的 error，lint 会报。</p>
+
+<p><strong><code>staticcheck</code></strong> 比 <code>go vet</code> 更深。举个例子：</p>
+<ul>
+  <li><code>go vet</code> 只检查"这行代码能不能被执行到"</li>
+  <li><code>staticcheck</code> 会检查"这个字符串拼接可以优化为 <code>strings.Builder</code>"</li>
+</ul>
+
+<!-- 1.12 -->
+<h3 id="go-makefile">1.12 Makefile 在 Go 项目中的角色</h3>
+
+<p>Go 自带 <code>go build</code>/<code>go test</code>，为什么还需要 Makefile？</p>
+
+<p><strong>原因</strong>：把多个 Go 命令组合成一个有记忆的口令。没有 Makefile 时，你要记住：</p>
+<pre data-lang="bash"><code>go test -coverprofile=coverage.out ./... &amp;&amp; go tool cover -func=coverage.out</code></pre>
+
+<p>有了 Makefile 就是 <code>make cover</code>。</p>
+
+<p><strong>Makefile 的基本语法</strong>：</p>
+
+<pre data-lang="makefile"><code>.PHONY: build test    # 声明这是动作名，不是文件名
+
+build:                # target 名
+	go build -o fridaforge ./cmd/fridaforge/  # 缩进必须是 TAB，不能用空格
+
+test:
+	go test -v ./...   # -v = verbose，会显示每个 t.Run 子测试结果
+
+cover:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out   # 打印每个函数覆盖率%</code></pre>
+
+<p>两个重要细节：</p>
+<ol>
+  <li><strong><code>.PHONY</code></strong>：如果恰好存在一个叫 <code>build</code> 的文件，make 会认为已经完成了。<code>.PHONY</code> 告诉 make "这不是文件，是每次都要执行的动作"。</li>
+  <li><strong>缩进必须是 TAB</strong>：Makefile 的历史包袱。用空格缩进会报 <code>*** missing separator. Stop.</code></li>
+</ol>
+
+<p><strong><code>go test -v</code> 的 <code>-v</code></strong>：没有它，测试输出只有 <code>PASS</code>/<code>FAIL</code>。加上 <code>-v</code>，你会看到每个 <code>t.Run("xxx", ...)</code> 的子测试名和结果，这就是 table-driven test 中的子测试。</p>
+
+<!-- 1.13 -->
+<h3 id="go-enum">1.13 Go 枚举模式 — <code>type X string</code> + const</h3>
+
+<p>Go <strong>没有</strong> <code>enum</code> 关键字。社区的惯用做法是用一个<strong>自定义 string 类型</strong>配合 <code>const</code> 来模拟枚举：</p>
+
+<pre data-lang="go"><code>type HookType string   // 1. 定义新类型，底层是 string
+
+const (
+    HookTypeOverload HookType = "overload"   // 2. const 列值
+    HookTypeReplace  HookType = "replace"
+)</code></pre>
+
+<p><strong>为什么不能直接用 <code>const</code> 字符串？</strong></p>
+
+<pre data-lang="go"><code>// 如果这样写：
+const Overload = "overload"
+const Replace  = "replace"
+
+func validate(ht string) { ... }
+
+validate(Overload)  // ✅
+validate("hack")     // ✅ 也编译通过！运行时才发现不对</code></pre>
+
+<p>有了自定义类型 <code>HookType</code>，编译期就有类型检查：</p>
+
+<pre data-lang="go"><code>func validate(ht HookType) { ... }
+
+validate(HookTypeOverload)  // ✅
+validate("hack")             // ❌ 编译报错：cannot use "hack" (string) as HookType</code></pre>
+
+<aside class="tip">
+  <p><strong>核心收益</strong>：把 runtime bug → compile-time error。这是 Go 类型系统的一个重要设计哲学：<strong>宁可编译器多报错，也不要运行时崩溃。</strong></p>
+</aside>
+
+<p>字符串比较也是类型安全的：</p>
+<pre data-lang="go"><code>if h.HookType == HookTypeOverload { ... }  // ✅
+if h.HookType == "overload" { ... }        // ❌ 编译报错</code></pre>
+
+<!-- 1.14 -->
+<h3 id="go-errordetail">1.14 Go error 接口深入 — 自定义错误类型</h3>
+
+<p>Go 的 <code>error</code> 接口只有一个方法：</p>
+
+<pre data-lang="go"><code>type error interface {
+    Error() string   // 就这一个方法
+}</code></pre>
+
+<p><strong>任何有 <code>Error() string</code> 方法的类型，就是一个 error。</strong> 这跟 Java 的 <code>implements Exception</code> 完全不同——不需要继承、不需要注册。</p>
+
+<p><strong>自定义错误类型</strong>：</p>
+
+<pre data-lang="go"><code>// 定义一个可以包含多个字段错误的错误类型
+type ValidationError struct {
+    Errors []FieldError
+}
+
+// 实现 error 接口
+func (e *ValidationError) Error() string {
+    // 把所有字段错误的描述拼接成一个字符串
+    var b strings.Builder
+    for _, fe := range e.Errors {
+        b.WriteString(fe.Error())
+    }
+    return b.String()
+}</code></pre>
+
+<p>现在 <code>*ValidationError</code> 就是一个 <code>error</code>，可以在任何接受 <code>error</code> 的地方使用：</p>
+
+<pre data-lang="go"><code>func Validate(s *HookSpec) error {    // 返回类型是 error 接口
+    var ve ValidationError
+    // ... 收集错误
+    return &amp;ve                        // 实际返回的是 *ValidationError
+                                       // 因为它实现了 error 接口，编译通过
+}</code></pre>
+
+<p>消费端可以用<strong>类型断言</strong>来判断具体是哪种错误：</p>
+
+<pre data-lang="go"><code>if validationErr, ok := err.(*ValidationError); ok {
+    // 这是校验错误，可以访问 validationErr.Errors 列表
+}</code></pre>
+
+<p><strong><code>strings.Builder</code> — 高效字符串拼接</strong>：</p>
+
+<p>在 <code>Error()</code> 方法里没有用 <code>s += "..."</code> 而是用了 <code>strings.Builder</code>。原因是 Go 的字符串是<strong>不可变的</strong>（immutable）——每次 <code>+=</code> 都会在内存里分配一份全新字符串并拷贝所有内容。10 个错误字段就是 10 次重新分配 + 拷贝。</p>
+
+<p><code>strings.Builder</code> 内部用 <code>[]byte</code> 缓冲，只在最后 <code>b.String()</code> 时一次性创建字符串，减少 CPU 和 GC 压力。</p>
+
+<!-- 1.15 -->
+<h3 id="go-cobra-adv">1.15 cobra 进阶 — 钩子、静默模式、标记文件</h3>
+
+<p><strong><code>PersistentPreRun</code> — 全局前置钩子</strong>：</p>
+
+<pre data-lang="go"><code>var rootCmd = &amp;cobra.Command{
+    PersistentPreRun: func(cmd *cobra.Command, args []string) {
+        checkEthicalDisclaimer()   // 每个子命令执行前都走这里
+    },
+}</code></pre>
+
+<p><code>Persistent</code> 表示<strong>传播</strong>——根命令的 <code>PersistentPreRun</code> 对所有子命令生效。无论执行 <code>fridaforge spec validate</code> 还是 <code>fridaforge device list</code>，都先跑这个钩子。对比：<code>PreRun</code> 只对当前命令生效，不传播。</p>
+
+<p><strong><code>SilenceErrors</code> + <code>SilenceUsage</code></strong>：</p>
+
+<p>cobra 的默认行为：<code>RunE</code> 返回 error → cobra 内部打印一次错误 + 打印 usage + <code>Execute()</code> 返回 error → <code>main()</code> 再打印一次。结果错误重复三次。</p>
+
+<pre data-lang="go"><code>SilenceErrors: true,  // cobra 不打印错误，交给 main() 统一处理
+SilenceUsage:  true,  // 错误时不显示 Usage（太啰嗦）</code></pre>
+
+<p><strong>标记文件模式（Marker File）</strong>：</p>
+
+<pre data-lang="go"><code>markerFile := filepath.Join(homeDir, ".fridaforge", "agreed")
+if _, err := os.Stat(markerFile); err == nil {
+    return nil  // 文件存在 → 用户已同意 → 跳过
+}
+// ... 显示伦理声明，要求输入 AGREE
+os.MkdirAll(filepath.Dir(markerFile), 0700)
+os.WriteFile(markerFile, []byte{}, 0600)</code></pre>
+
+<p>这是一个经典的"只执行一次"模式。很多 Unix 工具都用：</p>
+<ul>
+  <li>Git：<code>~/.gitconfig</code> 存在 → 已初始化</li>
+  <li>npm：<code>~/.npmrc</code> 存在 → 已配置</li>
+  <li>FridaForge：<code>~/.fridaforge/agreed</code> 存在 → 已同意</li>
+</ul>
+
+<p><code>os.Stat()</code> 返回文件信息；文件不存在时返回 error。这里只关心存在性，所以用 <code>_</code> 忽略返回的 <code>FileInfo</code>。</p>
+
+<p><strong>Unix 文件权限</strong>：<code>0700</code>（目录，仅所有者）和 <code>0600</code>（文件，仅所有者读写）。对包含隐私的配置文件（"我同意使用安全测试工具"），应该限制权限。</p>
+
+<!-- 1.16 -->
+<h3 id="go-whitebox">1.16 白盒测试 vs 黑盒测试 — <code>package spec</code> vs <code>package spec_test</code></h3>
+
+<p>测试文件 <code>types_test.go</code> 声明是 <code>package spec</code>，不是 <code>package spec_test</code>。两种写法的区别：</p>
+
+<table>
+  <thead>
+    <tr><th>声明</th><th>俗称</th><th>能访问什么</th><th>什么时候用</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>package spec</code></td><td>白盒测试</td><td>同包所有符号——导出和未导出的</td><td>需要测试内部类型、访问未导出字段</td></tr>
+    <tr><td><code>package spec_test</code></td><td>黑盒测试</td><td>只能访问导出（大写开头）的符号</td><td>验证公共 API 行为、不依赖内部实现</td></tr>
+  </tbody>
+</table>
+
+<p>本项目用白盒测试，因为 <code>TestValidationError</code> 要直接构造 <code>FieldError{Path: ..., Line: ...}</code>——这些字段是小写开头（未导出）的，黑盒测试看不见它们。</p>
+
+<p><strong><code>t.Fatalf</code> vs <code>t.Errorf</code></strong>：</p>
+
+<pre data-lang="go"><code>if len(s.Hooks) != 1 {
+    t.Fatalf(...)   // 立即终止当前测试用例（不改了，后面访问 s.Hooks[0] 会 panic）
+}
+if s.Hooks[0].ClassName != ... {
+    t.Errorf(...)   // 记录错误，继续跑后面的检查——一次看到所有不符
+}</code></pre>
+
+<p><strong><code>%q</code> 格式动词</strong>：自动给字符串加双引号。<code>""</code> 用 <code>%s</code> 打印是空白，用 <code>%q</code> 打印是 <code>""</code>——方便区分空字符串和空白输出。</p>
+
+<!-- 1.17 -->
+<h3 id="go-escape">1.17 逃逸分析 — 为什么 <code>return &amp;ve</code> 安全</h3>
+
+<pre data-lang="go"><code>func Validate(s *spec.HookSpec) error {
+    var ve ValidationError       // ve 是局部变量，按说应该在栈上
+    // ...
+    return &amp;ve                   // 返回局部变量的地址！在 C 里是野指针
+}</code></pre>
+
+<p>Go 编译器做<strong>逃逸分析（escape analysis）</strong>——它检测到 <code>ve</code> 的地址通过 <code>return</code> "逃出"了函数作用域，就自动把 <code>ve</code> 分配到<strong>堆</strong>上而不是栈上。GC 管理它，不会悬空。</p>
+
+<p>可以用编译命令看到逃逸分析的结果：</p>
+<pre data-lang="bash"><code>go build -gcflags="-m" ./pkg/config/
+# 输出：moved to heap: ve</code></pre>
+
+<aside class="warn">
+  <p><strong>nil 接口陷阱</strong>：</p>
+  <pre data-lang="go"><code>// 这样写有问题：
+var ve *spec.ValidationError = nil
+var err error = ve       // err 不是 nil！！它"装"了一个类型信息 *ValidationError
+err == nil               // false
+
+// 正确写法：
+var ve *spec.ValidationError = nil
+if hasErrors {
+    return ve             // 返回有类型的 nil——调用方 err != nil！
+}
+return nil                // 返回无类型的 nil——调用方 err == nil</code></pre>
+  <p><strong>nil 指针 ≠ nil 接口</strong>。nil 接口 = 既无类型信息也无值。nil 指针赋值给接口后 = 有类型信息（<code>*ValidationError</code>）但值为 nil——所以接口本身不是 nil。</p>
+</aside>
+
+<!-- 1.18 -->
+<h3 id="go-init">1.18 <code>init()</code> — Go 的自动初始化函数</h3>
+
+<pre data-lang="go"><code>func init() {
+    rootCmd.AddCommand(specCmd)
+    specCmd.AddCommand(specValidateCmd)
+}</code></pre>
+
+<p><code>init()</code> 是 Go 的特殊函数：<strong>在 <code>main()</code> 执行前自动调用，不需要手动触发</strong>。一个 package 可以有多个 <code>init()</code>（多个文件各一个），执行顺序按文件名字母序。</p>
+
+<p>用途：注册、初始化全局状态、构建 cobra 命令树。用在 FridaForge 里把子命令挂到根命令上。</p>
+
+<!-- 1.19 -->
+<h3 id="go-pointer">1.19 <code>yaml.Unmarshal</code> — 为什么必须传指针</h3>
+
+<pre data-lang="go"><code>var s spec.HookSpec
+yaml.Unmarshal(data, &amp;s)   // ✅ &amp;s = 传递 s 的地址
+yaml.Unmarshal(data, s)    // ❌ 传了 s 的副本，解析结果写到副本里，函数退出后消失</code></pre>
+
+<p>函数签名是 <code>func Unmarshal(in []byte, out interface{}) error</code>——第二个参数是 <code>interface{}</code>（空接口，接受任何类型）。但内部实现需要<strong>写</strong>到 <code>out</code> 指向的变量里，所以必须传指针。<strong>在 Go 里，你想让一个函数修改你的变量，就传它的指针。</strong></p>
+
+<!-- 1.20 -->
+<h3 id="go-compile-iface">1.20 <code>var _ Interface = (*Type)(nil)</code> — 编译时接口检查</h3>
+
+<pre data-lang="go"><code>var _ DeviceLister = (*StubDeviceLister)(nil)</code></pre>
+
+<p>这行代码做了什么：把一个 <code>nil</code>（但类型是 <code>*StubDeviceLister</code>）赋值给 <code>DeviceLister</code> 接口变量，赋值结果丢弃给 <code>_</code>（空白标识符）。</p>
+
+<p>这行代码的<strong>唯一目的</strong>是让编译器在赋值这行做接口实现检查：<strong>「<code>*StubDeviceLister</code> 有没有 <code>DeviceLister</code> 要求的全部方法？」</strong> 没有 → <strong>编译报错</strong>。有 → 编译通过，不产生任何运行时代码。</p>
+
+<p>为什么需要它？因为 Go 没有 <code>implements</code> 关键字。如果不写这行检查，只有当有人真的在代码里写 <code>var lister DeviceLister = &amp;StubDeviceLister{}</code> 时才会检查——而那段代码可能跟你不在同一个包、甚至还没写。</p>
+
+<p>Docker、Kubernetes、etcd 等 Go 项目都用这个模式。放在接口定义旁边，谁签了合同就写一行。</p>
+
+<!-- 1.21 -->
+<h3 id="go-context">1.21 <code>context.Context</code> — Go 的请求生命周期</h3>
+
+<pre data-lang="go"><code>ListDevices(ctx context.Context) ([]Device, error)</code></pre>
+
+<p><code>context.Context</code> 是 Go 标准库的类型，三个核心功能：</p>
+
+<table>
+  <thead>
+    <tr><th>功能</th><th>用途</th><th>示例</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>超时控制</strong></td><td>"5 秒没返回就放弃"</td><td><code>ctx, cancel := context.WithTimeout(ctx, 5*time.Second)</code></td></tr>
+    <tr><td><strong>取消传播</strong></td><td>"用户按了 Ctrl+C，所有操作停"</td><td>父 ctx 取消 → 所有子 ctx 自动取消</td></tr>
+    <tr><td><strong>值传递</strong></td><td>请求级别的数据（trace ID、user 等）</td><td><code>ctx = context.WithValue(ctx, key, val)</code></td></tr>
+  </tbody>
+</table>
+
+<p>M1 中传入的是 <code>context.Background()</code>——一个空的、永不取消、永不超时、无任何值的 context。<strong>接口里放它是为 M2 做准备</strong>：真实 Frida 查询可能很慢，需要超时控制。</p>
+
+<!-- 1.22 -->
+<h3 id="go-tabwriter">1.22 <code>text/tabwriter</code> — Go 内置表格输出</h3>
+
+<pre data-lang="go"><code>w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+fmt.Fprintln(w, "ID\tNAME\tTYPE")
+fmt.Fprintf(w, "%s\t%s\t%s\n", d.ID, d.Name, d.ConnectType)
+w.Flush()</code></pre>
+
+<p><code>tabwriter</code> 自动对齐以 <code>\t</code>（Tab）分隔的列。对比手工对齐：</p>
+
+<pre data-lang="go"><code>// 不用 tabwriter——你得自己算宽度：
+fmt.Printf("%-16s %-22s %s\n", d.ID, d.Name, d.ConnectType)
+//          ^^^^^^^^ 每次加新设备都要改列宽！</code></pre>
+
+<p>用 tabwriter 的话，它内部自动计算每列最大宽度再输出——<strong>永远对齐，不管内容多长</strong>。</p>
+
+<p><code>NewWriter</code> 参数 (w, minWidth, tabWidth, padding, padChar, flags)：</p>
+<ul>
+  <li>前两个 0 = 不设最小宽度</li>
+  <li>2 = 列间 padding 2 个空格</li>
+  <li><code>Flush()</code> 是触发输出的命令，tabwriter 缓冲数据到 Flush 再写</li>
+</ul>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 二、逆向/底层轨道 -->
+<!-- ============================================================ -->
+
+<h2 id="rev-track">二、逆向/底层轨道</h2>
+
+<!-- 2.1 -->
+<h3 id="rev-yaml">2.1 YAML 字段的逆向语义</h3>
+
+<table>
+  <thead>
+    <tr><th>YAML 字段</th><th>在 Android/ART 运行时中的含义</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>app_package</code></td>
+      <td>AndroidManifest.xml 中的 <code>package</code> 属性。ART 用它来隔离不同应用的<strong>类加载器</strong>（ClassLoader）——同一个包名 = 同一个沙箱</td>
+    </tr>
+    <tr>
+      <td><code>class_name</code></td>
+      <td>Dalvik 字节码中的<strong>类全限定名</strong>。Java 源码里是 <code>com.example.Foo</code>，在 DEX 文件中被编码为 <code>Lcom/example/Foo;</code>（Smali 语法）</td>
+    </tr>
+    <tr>
+      <td><code>method_name</code></td>
+      <td>ART 方法签名的一部分。M1 只记录简单方法名（如 <code>onCreate</code>），M3 将加入完整的<strong>参数签名</strong>（如 <code>(ILjava/lang/String;)V</code>）以区分重载方法</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>为什么需要全限定类名</strong>：Android 应用使用 Dalvik/ART 虚拟机，类由「包名 + 类名」唯一标识。Frida 的 <code>Java.use("com.example.Foo")</code> 接收的就是这种全限定名——不带 <code>.class</code> 后缀，用 <code>.</code> 而非 <code>/</code>。</p>
+
+<!-- 2.2 -->
+<h3 id="rev-hooktype">2.2 Hook 类型的逆向差异</h3>
+
+<table>
+  <thead>
+    <tr><th>类型</th><th>对应 Frida 模式</th><th>行为</th><th>典型用途</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>overload</code></td>
+      <td><code>onEnter</code>/<code>onLeave</code> 回调</td>
+      <td>在<strong>原方法前后</strong>插入代码，原方法仍执行</td>
+      <td>监控参数和返回值（不改行为）——如记录加密函数的输入输出</td>
+    </tr>
+    <tr>
+      <td><code>replace</code></td>
+      <td><code>.implementation = function()</code></td>
+      <td><strong>完全替换</strong>原方法实现，原方法不再执行</td>
+      <td>修改行为——如让 root 检测函数永远返回 <code>false</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Frida 代码对应</strong>：</p>
+
+<pre data-lang="javascript"><code>// overload 模式
+Java.perform(function() {
+    var Target = Java.use("com.example.Target");
+    Target.method.overload().implementation = function() {
+        console.log("Enter method");  // 前插
+        var ret = this.method();      // 调用原方法
+        console.log("Leave method");  // 后插
+        return ret;
+    };
+});
+
+// replace 模式
+Java.perform(function() {
+    var Target = Java.use("com.example.Check");
+    Target.isRooted.implementation = function() {
+        return false;  // 原方法完全不执行
+    };
+});</code></pre>
+
+<p>M1 只记录 hook 类型声明，不生成 Frida 脚本（脚本生成在 M3）。</p>
+
+<!-- 2.3 -->
+<h3 id="rev-arch">2.3 Frida 架构与设备通信原理</h3>
+
+<h4>2.3.1 Frida 的宏观架构</h4>
+
+<p>Frida 不是单进程工具，它是一个<strong>三端分离的系统</strong>：</p>
+
+<pre><code>┌─────────────────────┐      ┌─────────────────┐      ┌──────────────────┐
+│  开发端 (你的电脑)    │      │   USB / 网络      │      │ 目标设备 (手机)    │
+│                     │      │                  │      │                  │
+│  frida CLI          │──────│  ADB / TCP       │──────│  frida-server    │
+│  frida-ps           │      │  27042 端口      │      │  (后台守护进程)    │
+│  frida-trace        │      │                  │      │                  │
+│  FridaForge (M2+)   │      │                  │      │  目标 App (进程)  │
+│                     │      │                  │      │  ↑ 注入 JS       │
+└─────────────────────┘      └─────────────────┘      └──────────────────┘
+        ↑                                                        ↑
+  你的代码在这端                                frida-agent (GumJS)
+  (通过 frida-core API 或                         引擎跑在 App 进程里
+   frida CLI 工具)</code></pre>
+
+<p><strong>三个角色</strong>：</p>
+
+<table>
+  <thead>
+    <tr><th>角色</th><th>位置</th><th>组件</th><th>职责</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>开发端</strong></td><td>你的电脑</td><td><code>frida-core</code> 库、frida CLI 工具</td><td>连接设备、编译/注入 JS 脚本</td></tr>
+    <tr><td><strong>传输层</strong></td><td>USB / 网络</td><td>ADB、TCP</td><td>在两端之间传输数据和控制命令</td></tr>
+    <tr><td><strong>目标端</strong></td><td>Android 设备</td><td><code>frida-server</code> + <code>frida-agent</code></td><td>接收指令、注入 JavaScript 到目标进程</td></tr>
+  </tbody>
+</table>
+
+<h4>2.3.2 frida-core 是什么？</h4>
+
+<p><code>frida-core</code> 是 Frida 的<strong>核心引擎层</strong>（C 语言编写），运行在开发端。它负责：</p>
+
+<ol>
+  <li><strong>设备枚举</strong>：发现 USB 和网络连接的设备</li>
+  <li><strong>会话管理</strong>：创建、维护、销毁与目标进程的连接</li>
+  <li><strong>脚本生命周期</strong>：编译 JavaScript → 注入到目标进程 → 接收返回值</li>
+  <li><strong>通信管道</strong>：封装底层传输协议（USB/网络）</li>
+</ol>
+
+<p>M2 时可以通过两种方式在 Go 中调用 frida-core：</p>
+<ul>
+  <li><strong><code>frida-go</code> 绑定</strong>：Go 对 <code>frida-core</code> 的 C 语言绑定的封装（相当于 Go 直接调用 <code>frida-core</code> 的 C API）</li>
+  <li><strong>调用 <code>frida-ls-devices</code> 命令</strong>：用 <code>os/exec</code> 执行 frida CLI 工具并解析输出（字符串解析，不需要 C 绑定）</li>
+</ul>
+
+<h4>2.3.3 设备发现（Device Enumeration）</h4>
+
+<p><code>frida-core</code> 内部扫描设备的机制：</p>
+
+<pre data-lang="c"><code>// frida-core 内部的伪代码逻辑
+FridaDeviceList *devices = frida_device_manager_enumerate_devices(manager);
+// frida-core 做了三件事：
+// 1. 调用 ADB: adb devices → 获取 USB 和模拟器设备
+// 2. 扫描本机 TCP 端口 27042 → 发现网络设备
+// 3. 合并结果，为每个设备打上类型标签（usb / network / emulator）</code></pre>
+
+<p><strong>USB 设备</strong>：frida 通过 ADB（Android Debug Bridge）检测 USB 连接的设备。ADB 是 Android SDK 的工具，用 USB 线连接后，运行 <code>adb devices</code> 会列出所有已认证的设备。</p>
+
+<p><strong>网络设备</strong>：当 Android 设备上运行了 <code>frida-server -l 0.0.0.0:27042</code>，它会监听该 TCP 端口。frida-core 扫描局域网内开放 <code>27042</code> 端口的主机来发现网络设备。典型场景：WiFi 连接的设备、云手机。</p>
+
+<p><strong>模拟器</strong>：模拟器通过 ADB 检测（模拟器内置 <code>adbd</code> 服务），frida-core 将 ADB 类型为 "emulator" 的设备标记为模拟器。运行 <code>adb devices</code> 时模拟器显示为 <code>emulator-5554</code>。</p>
+
+<h4>2.3.4 frida-server 的作用</h4>
+
+<p><code>frida-server</code> 是运行在 Android 设备上的<strong>守护进程</strong>（通常是一个名为 <code>frida-server-xx.x.x-android-arm64</code> 的二进制文件）。它的工作：</p>
+
+<pre><code>                    frida-server
+                        │
+         ┌──────────────┼──────────────┐
+         │              │              │
+    接收开发端的指令   注入到目标进程   返回 Hook 结果
+    (监听 27042)    (ptrace attach)    (通过管道送回)</code></pre>
+
+<p>启动方式（在 Android shell 里）：</p>
+<pre data-lang="bash"><code>adb push frida-server /data/local/tmp/     # 推到设备
+adb shell chmod +x /data/local/tmp/frida-server
+adb shell /data/local/tmp/frida-server &amp;   # 后台运行</code></pre>
+
+<p>启动后，frida-server 会：</p>
+<ol>
+  <li>创建 TCP 监听 socket（默认 27042）</li>
+  <li>等待开发端的连接</li>
+  <li>收到 Hook 请求后，用 Linux <code>ptrace</code> 系统调用附加到目标进程</li>
+  <li>在目标进程内加载 <code>frida-agent</code>（GumJS 引擎）</li>
+  <li>GumJS 接收 JavaScript 脚本并执行（<code>Java.perform</code>、<code>Interceptor.attach</code> 等）</li>
+</ol>
+
+<h4>2.3.5 从 <code>frida device list</code> 到真正的 Hook（M2 路线图）</h4>
+
+<p>M1 的 <code>device list</code> 只是 CLI 桩，实际数据流在 M2 会变成：</p>
+
+<pre><code>fridaforge device list
+    ↓
+pkg/device/DeviceLister.ListDevices(ctx)
+    ↓
+pkg/frida/FridaDeviceLister (M2 实现)
+    ↓
+frida-core API (通过 frida-go 绑定 或 os/exec 调 frida-ls-devices)
+    ↓
+ADB 扫描 + TCP 端口扫描
+    ↓
+设备列表返回</code></pre>
+
+<p>M1 用 <code>StubDeviceLister</code> 跳过这个完整链路，让 CLI 骨架先搭起来——这是标准的接口驱动设计。</p>
+
+<h4>2.3.6 M1 需要知道这些吗？</h4>
+
+<p>不需要。M1 的 <code>StubDeviceLister</code> 只返回硬编码设备，不调用任何 Frida API。但是理解这个架构能让你明白：</p>
+<ul>
+  <li>为什么 <code>DeviceLister</code> 接口现在就要定义——它在 M2 会接入 frida-core</li>
+  <li>为什么 <code>device list</code> 的 stub 返回"Frida 服务不可达"错误——因为真正的 frida-server 可能没运行</li>
+  <li>为什么设备列表显示设备 ID/名称/类型——这些正是 <code>frida_device_get_id()</code> / <code>frida_device_get_name()</code> / <code>frida_device_get_dtype()</code> 返回的信息</li>
+</ul>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 三、AI 编程范式轨道 -->
+<!-- ============================================================ -->
+
+<h2 id="ai-track">三、AI 编程范式轨道</h2>
+
+<!-- 3.1 -->
+<h3 id="ai-speckit">3.1 SpecKit 工作流 — M1 完整回顾</h3>
+
+<p>M1 走完了 SpecKit 的 4 个阶段（还差 <code>implement</code>）：</p>
+
+<pre><code>/speckit.specify   # spec.md        — 定义用户要什么（3 个 User Story）
+        ↓
+/speckit.clarify   # spec.md 增强    — 消除 5 个歧义点
+        ↓
+/speckit.plan      # plan.md +       — 技术架构、宪法检查、数据模型、契约
+                     research.md
+                     data-model.md
+                     contracts/
+                     quickstart.md
+        ↓
+/speckit.analyze   # 发现 8 个问题  — 交叉验证 spec/plan/tasks 一致性
+        ↓
+/speckit.tasks     # tasks.md       — 26 个可执行 Task
+        ↓
+/speckit.implement # 下一步          — 逐个 Task 写代码</code></pre>
+
+<!-- 3.2 -->
+<h3 id="ai-specvsvibe">3.2 Spec Coding vs Vibe Coding</h3>
+
+<p>这是 M0 就讲过的核心区分。用一个例子说明：</p>
+
+<table>
+  <thead>
+    <tr><th>模式</th><th>说"我"要什么</th><th>说"你怎么"实现</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Spec Coding</strong> ✅</td><td>「文件不存在时给出清晰的错误信息」</td><td>留空——给 <code>/speckit.plan</code> 决定</td></tr>
+    <tr><td><strong>Vibe Coding</strong> ❌</td><td>跳过</td><td>「用 if err != nil { fmt.Println(...) }」——越界指导</td></tr>
+  </tbody>
+</table>
+
+<p>SpecKit 强制执行这种分离：<code>spec.md</code> 只管 <strong>WHAT</strong>（想要什么），<code>plan.md</code>/<code>research.md</code> 只管 <strong>HOW</strong>（怎么实现）。混在一起 = 返回 Vibe Coding。</p>
+
+<!-- 3.3 -->
+<h3 id="ai-break">3.3 本阶段的 AI 认知突破</h3>
+
+<details open>
+  <summary><strong>突破一：宪法不是摆设——analyze 让它"活过来"</strong></summary>
+  <p>宪法 2.2 的接口命名规则（单方法接口以 <code>-er</code> 结尾）在代码里被违反了一次——<code>DeviceManager</code> 是单方法接口但以 <code>Manager</code> 结尾。<code>/speckit.analyze</code> 在交叉验证 spec/plan/tasks 时抓出了这个问题，重命名为 <code>DeviceLister</code>。</p>
+  <p>教训：宪法条文如果不和实际代码交叉验证，就是一篇没人看的 markdown。analyze 阶段的价值在于让宪法"活过来"——机器对照检查，人做决策。</p>
+</details>
+
+<details open>
+  <summary><strong>突破二：三个文档一定会漂移</strong></summary>
+  <p>spec.md、plan.md、tasks.md 如果分别写，一定会互相矛盾。不是写的人不认真——是人脑无法同时追踪三个文档的每一条声明。当文件总量达到 233 行（tasks.md）+ 94 行（plan.md）+ 125 行（spec.md）= 452 行时，任何一个字的偏差都可能被漏掉。analyze 阶段在这次 M1 中发现了 8 个不一致，其中 1 个 CRITICAL、3 个 MEDIUM。</p>
+  <p>这印证了 Spec Coding 的核心主张：<strong>把验证交给机器，把决策留给人。</strong></p>
+</details>
+
+<details open>
+  <summary><strong>突破三：教学文档是检验理解的唯一标准</strong></summary>
+  <p>写 <code>docs/learn/M1-go-cli-config.md</code> 的过程暴露了"以为自己懂了"和"真正能讲清楚"之间的差距。以接口概念为例：</p>
+  <ul>
+    <li>第一版：用"鸭子类型"比喻——学员表示不理解</li>
+    <li>第二版：用"隐式满足"术语——学员仍然困惑</li>
+    <li>第三版：用"合同隐喻" + FridaForge M1/M2 替换场景——学员懂了</li>
+  </ul>
+  <p>教训：最好的学习方式是尝试教会别人。如果不能用三种不同的比喻讲清楚一个概念，说明自己还没真正懂。教学文档就是这个"别人"。</p>
+</details>
+
+<details open>
+  <summary><strong>突破四：教学和编码不应该割裂</strong></summary>
+  <p>M1 开始时试图"全部讲完再全部写"——学员看完整套 Go 语法后要求"开始写"，写了两个 Task 后接口概念暴露出了真正的盲区。如果在教学阶段就讲接口，学员会觉得"哦，Java 里类似"——没有实际代码的对照，理解停留在表面。</p>
+  <p>M1 证明"即讲即写"模式更有效：每个 Phase 写代码前讲新概念，代码写完补充学习文档，学员的困惑在代码层面暴露并在当场解决。</p>
+</details>
+
+<!-- 3.4 -->
+<h3 id="ai-retro">3.4 M1 工作流反思（供 M2 参考）</h3>
+
+<table>
+  <thead>
+    <tr><th>哪些做对了</th><th>哪些需要改进</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>SpecKit 规划阶段严格顺序执行</td>
+      <td>教学文档初始版过早——核心概念讲完应立刻进入实现</td>
+    </tr>
+    <tr>
+      <td>每个 Phase = 讲解 → 编码 → 补充文档</td>
+      <td>不要自顾自推完所有 Task——每个 Phase 等确认</td>
+    </tr>
+    <tr>
+      <td>analyze 阶段执行了两次（实现前 + 实现后）</td>
+      <td>viper 这种"计划了但没用"的要在教学文档里解释</td>
+    </tr>
+    <tr>
+      <td>同文件 Task 合并 Commit</td>
+      <td>milestones.md 的目标产出要在实现后更新</td>
+    </tr>
+    <tr>
+      <td>学习文档随代码逐步丰富</td>
+      <td>独立迷你示例和项目代码示例要形成对照</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 四、本阶段 Go 知识点汇总 -->
+<!-- ============================================================ -->
+
+<h2 id="go-summary">四、本阶段 Go 知识点汇总</h2>
+
+<table>
+  <thead>
+    <tr><th>知识点</th><th>对应 tasks.md</th><th>首次出现</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>package</code> / <code>import</code></td><td>T005, T006</td><td>M1</td></tr>
+    <tr><td><code>struct</code> + tag</td><td>T005, T018</td><td>M1</td></tr>
+    <tr><td><code>if err != nil</code> + <code>%w</code></td><td>T006, T012</td><td>M1</td></tr>
+    <tr><td><code>slice</code> / <code>map</code></td><td>T009, T013</td><td>M1</td></tr>
+    <tr><td>Table-driven test <code>t.Run</code></td><td>T009-T011, T016-T017, T021</td><td>M1</td></tr>
+    <tr><td><code>cobra.Command</code> 树形注册</td><td>T007, T008, T014, T015, T020</td><td>M1</td></tr>
+    <tr><td><code>yaml.Unmarshal</code></td><td>T012</td><td>M1</td></tr>
+    <tr><td>Interface 概念（合同 vs 实现、何时用/不用）</td><td>T019</td><td>M1</td></tr>
+    <tr><td><code>os.ReadFile</code> / <code>os.Exit</code></td><td>T012, T014, T020</td><td>M1</td></tr>
+    <tr><td><code>fmt.Errorf</code> / <code>fmt.Fprintf</code></td><td>T006, T014, T020</td><td>M1</td></tr>
+    <tr><td>go.mod / go.sum / <code>// indirect</code> / 模块路径本地解析</td><td>T002</td><td>M1</td></tr>
+    <tr><td>GOPROXY 国内镜像</td><td>T002</td><td>M1</td></tr>
+    <tr><td>golangci-lint 配置</td><td>T003</td><td>M1</td></tr>
+    <tr><td>Makefile + <code>.PHONY</code></td><td>T004</td><td>M1</td></tr>
+    <tr><td>Go 项目标准布局 <code>cmd/</code> <code>pkg/</code></td><td>T001</td><td>M1</td></tr>
+    <tr><td>白盒/黑盒测试 + <code>t.Fatalf</code> vs <code>t.Errorf</code> + <code>%q</code></td><td>T009</td><td>M1</td></tr>
+    <tr><td>逃逸分析 + nil 接口陷阱</td><td>T013</td><td>M1</td></tr>
+    <tr><td><code>init()</code> 自动初始化函数</td><td>T014</td><td>M1</td></tr>
+    <tr><td><code>yaml.Unmarshal</code> 指针参数</td><td>T012</td><td>M1</td></tr>
+    <tr><td><code>var _ Interface = (*Type)(nil)</code> 编译时检查</td><td>T019</td><td>M1</td></tr>
+    <tr><td><code>context.Context</code> 请求生命周期</td><td>T019</td><td>M1</td></tr>
+    <tr><td><code>text/tabwriter</code> 表格对齐输出</td><td>T020</td><td>M1</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<blockquote>
+  <p><strong>宪法 6.1 确认</strong>：本学习笔记同等覆盖了 Go 语法特性（第一章）、Android/Frida 逆向原理（第二章）、SpecKit 工作流与 AI 编程认知突破（第三章）。M1 完成。</p>
+</blockquote>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 附录 A -->
+<!-- ============================================================ -->
+
+<h2 id="appendix">附录 A：独立可运行迷你代码示例</h2>
+
+<blockquote>
+  <p>以下示例脱离 FridaForge 项目上下文，可单独保存为 <code>.go</code> 文件运行。每个示例对应正文中的教学章节，供概念学习和快速验证使用。</p>
+</blockquote>
+
+<h3>A.1 包与导入（对应 1.1）</h3>
+
+<pre data-lang="go"><code>package main
+
+import (
+    "fmt"
+    "math/rand"
+)
+
+func main() {
+    fmt.Println("随机数:", rand.Intn(100))
+}</code></pre>
+<p>运行：<code>go run main.go</code></p>
+
+<h3>A.2 结构体与 tag（对应 1.2）</h3>
+
+<pre data-lang="go"><code>package main
+
+import (
+    "encoding/json"
+    "fmt"
+)
+
+type Person struct {
+    Name string `json:"name"`
+    Age  int    `json:"age"`
+}
+
+func main() {
+    data := `{"name": "Alice", "age": 30}`
+    var p Person
+    json.Unmarshal([]byte(data), &amp;p)
+    fmt.Printf("%s 今年 %d 岁\n", p.Name, p.Age)
+}</code></pre>
+
+<h3>A.3 错误处理（对应 1.3）</h3>
+
+<pre data-lang="go"><code>package main
+
+import (
+    "fmt"
+    "os"
+)
+
+func main() {
+    _, err := os.ReadFile("不存在的文件.txt")
+    if err != nil {
+        fmt.Printf("出错了: %v\n", err)
+        return
+    }
+    fmt.Println("文件读取成功")
+}</code></pre>
+
+<h3>A.4 slice 和 map（对应 1.4）</h3>
+
+<pre data-lang="go"><code>package main
+
+import "fmt"
+
+func main() {
+    cart := []string{"苹果", "香蕉", "橘子"}
+    prices := map[string]int{"苹果": 5, "香蕉": 3, "橘子": 4}
+
+    total := 0
+    for _, item := range cart {
+        total += prices[item]
+    }
+    fmt.Printf("购物车总价: %d 元\n", total)
+}</code></pre>
+
+<h3>A.5 cobra 迷你 CLI（对应 1.6）</h3>
+
+<pre data-lang="go"><code>package main
+
+import (
+    "fmt"
+    "github.com/spf13/cobra"
+)
+
+func main() {
+    var cmd = &amp;cobra.Command{
+        Use:   "greet",
+        Short: "打招呼",
+        Run: func(cmd *cobra.Command, args []string) {
+            name := "世界"
+            if len(args) &gt; 0 {
+                name = args[0]
+            }
+            fmt.Printf("你好, %s!\n", name)
+        },
+    }
+    cmd.Execute()
+}</code></pre>
+<p>运行：<code>go run main.go Alice</code> → 输出 <code>你好, Alice!</code></p>
+
+<h3>A.6 YAML 反序列化（对应 1.7）</h3>
+
+<pre data-lang="go"><code>package main
+
+import (
+    "fmt"
+    "gopkg.in/yaml.v3"
+)
+
+type Config struct {
+    Host string `yaml:"host"`
+    Port int    `yaml:"port"`
+}
+
+func main() {
+    data := []byte("host: localhost\nport: 8080\n")
+    var cfg Config
+    yaml.Unmarshal(data, &amp;cfg)
+    fmt.Printf("http://%s:%d\n", cfg.Host, cfg.Port)
+}</code></pre>
+
+<h3>A.7 接口（对应 1.8）</h3>
+
+<pre data-lang="go"><code>package main
+
+import "fmt"
+
+type Notifier interface {
+    Notify(msg string)
+}
+
+type Email struct{}
+
+func (e Email) Notify(msg string) {
+    fmt.Printf("邮件: %s\n", msg)
+}
+
+type SMS struct{}
+
+func (s SMS) Notify(msg string) {
+    fmt.Printf("短信: %s\n", msg)
+}
+
+func main() {
+    var n Notifier
+    n = Email{}
+    n.Notify("你好")   // 输出: 邮件: 你好
+    n = SMS{}
+    n.Notify("你好")   // 输出: 短信: 你好
+}</code></pre>
+<p>项目对应：<code>DeviceLister</code> 接口 → <code>StubDeviceLister</code>（M1 桩）和 <code>RealDeviceLister</code>（M2 真实 Frida）。</p>
+
+<h3>A.8 枚举模式（对应 1.13）</h3>
+
+<pre data-lang="go"><code>package main
+
+import "fmt"
+
+type Status string
+
+const (
+    StatusPending  Status = "pending"
+    StatusActive   Status = "active"
+    StatusInactive Status = "inactive"
+)
+
+func main() {
+    s := StatusActive
+    if s == StatusActive {
+        fmt.Println("状态是活跃的")
+    }
+    // s == "active"   // 编译报错: 类型不匹配
+}</code></pre>
+
+<h3>A.9 context 超时（对应 1.21）</h3>
+
+<pre data-lang="go"><code>package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+)
+
+func main() {
+    ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+    defer cancel()
+
+    select {
+    case &lt;-time.After(2 * time.Second):
+        fmt.Println("完成")
+    case &lt;-ctx.Done():
+        fmt.Println("超时:", ctx.Err())
+    }
+}</code></pre>
+<p>输出：<code>超时: context deadline exceeded</code></p>
+
+</body>
+</html>
