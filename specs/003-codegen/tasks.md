@@ -51,10 +51,10 @@
 
 **目标**: 定义 `GenerateOutput`、`GeneratedScript`、`RenderContext`、`TemplateError`、`GenerateError`
 
-- [ ] T010 [P] 创建 `pkg/codegen/types.go` — `GenerateOutput` 结构体 (Combined string + Scripts []GeneratedScript)，`GeneratedScript` 结构体 (HookTarget + JSCode)，`RenderContext` 结构体 (AppPackage, ClassName, MethodName, HookType, MethodSignature, ModuleName)
-- [ ] T011 [P] 创建 `pkg/codegen/errors.go` — `TemplateError` (Op, Name, Err)，`GenerateError` (Op, Err)，均实现 `Error()` 和 `Unwrap()`
-- [ ] T012 [P] 创建 `pkg/codegen/types_test.go` — table-driven: GenerateOutput/Scripts 字段赋值，RenderContext 各字段默认值
-- [ ] T013 [P] 创建 `pkg/codegen/errors_test.go` — table-driven: TemplateError.Error() 包含 Op/Name/Err，Unwrap() 正确，GenerateError 同理
+- [x] T010 [P] 创建 `pkg/codegen/types.go` — `GenerateOutput` 结构体 (Combined string + Scripts []GeneratedScript)，`GeneratedScript` 结构体 (HookTarget + JSCode)，`RenderContext` 结构体 (AppPackage, ClassName, MethodName, HookType, MethodSignature, ModuleName)
+- [x] T011 [P] 创建 `pkg/codegen/errors.go` — `TemplateError` (Op, Name, Err)，`GenerateError` (Op, Err)，均实现 `Error()` 和 `Unwrap()`
+- [x] T012 [P] 创建 `pkg/codegen/types_test.go` — table-driven: GenerateOutput/Scripts 字段赋值，RenderContext 各字段默认值
+- [x] T013 [P] 创建 `pkg/codegen/errors_test.go` — table-driven: TemplateError.Error() 包含 Op/Name/Err，Unwrap() 正确，GenerateError 同理
 
 **Checkpoint**: codegen 基础类型就绪
 

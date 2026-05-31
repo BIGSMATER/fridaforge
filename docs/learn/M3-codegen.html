@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M3 学习笔记：Go 模板引擎与声明式代码生成 — FridaForge</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --code-bg: #1c2128;
+    --code-border: #30363d;
+    --warn-bg: #21262d;
+    --warn-border: #d29922;
+    --tip-bg: #161b22;
+    --tip-border: #3fb950;
+    --note-bg: #161b22;
+    --note-border: #58a6ff;
+  }
+
+  @media print {
+    :root {
+      --bg: #fff;
+      --surface: #f6f8fa;
+      --text: #24292f;
+      --muted: #57606a;
+      --border: #d0d7de;
+    }
+    nav, .phase-nav { display: none; }
+    body { font-size: 11pt; }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--border); padding-bottom: .5rem; margin: 1.5rem 0 1rem; }
+  h2 { font-size: 1.5rem; margin: 2rem 0 1rem; padding-top: .5rem; border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+  h3 { font-size: 1.2rem; margin: 1.5rem 0 .75rem; }
+  h4 { font-size: 1.05rem; margin: 1.2rem 0 .5rem; color: var(--accent); }
+
+  p { margin: .75rem 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Navigation */
+  nav.toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin: 1rem 0 2rem;
+  }
+  nav.toc h2 { font-size: 1.1rem; margin: 0 0 .75rem; padding: 0; border: none; }
+  nav.toc ol { padding-left: 1.5rem; }
+  nav.toc li { margin: .3rem 0; font-size: .92rem; }
+  nav.toc ol ol { font-size: .88rem; padding-left: 1.25rem; }
+
+  /* Phase Nav */
+  .phase-nav {
+    background: var(--surface);
+    border: 1px solid var(--tip-border);
+    border-radius: 6px;
+    padding: .75rem 1rem;
+    margin: .5rem 0 1.5rem;
+    font-size: .88rem;
+    color: var(--muted);
+  }
+  .phase-nav strong { color: var(--accent); }
+
+  /* Metadata */
+  .metadata {
+    color: var(--muted);
+    font-size: .88rem;
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+  .metadata dt { font-weight: 600; display: inline; }
+  .metadata dd { display: inline; margin-right: 1rem; }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    padding: .15rem .5rem;
+    border-radius: 2em;
+    font-size: .75rem;
+    font-weight: 600;
+    margin-right: .3rem;
+  }
+  .badge-go  { background: #00add81a; color: #00add8; border: 1px solid #00add840; }
+  .badge-rev { background: #f0883e1a; color: #f0883e; border: 1px solid #f0883e40; }
+  .badge-ai  { background: #8b5cf61a; color: #8b5cf6; border: 1px solid #8b5cf640; }
+
+  /* Code */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: .75rem 0;
+    font-size: .88rem;
+    line-height: 1.5;
+    position: relative;
+  }
+  pre code { font-family: "SF Mono", "Cascadia Code", "Fira Code", Menlo, monospace; }
+  code {
+    font-family: "SF Mono", "Cascadia Code", "Fira Code", Menlo, monospace;
+    background: var(--code-bg);
+    padding: .15em .4em;
+    border-radius: 3px;
+    font-size: .9em;
+  }
+  pre code { background: none; padding: 0; border-radius: 0; }
+
+  /* Code labels */
+  pre[data-lang]::before {
+    content: attr(data-lang);
+    position: absolute;
+    top: 0; right: 0;
+    font-size: .72rem;
+    color: var(--muted);
+    padding: .2rem .6rem;
+    border-bottom-left-radius: 6px;
+    background: var(--surface);
+    border-left: 1px solid var(--code-border);
+    border-bottom: 1px solid var(--code-border);
+  }
+
+  /* Collapsible */
+  details {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .75rem 1rem;
+    margin: .75rem 0;
+    background: var(--surface);
+  }
+  details[open] { background: var(--bg); }
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--accent);
+    user-select: none;
+  }
+  summary:hover { text-decoration: underline; }
+  details > *:not(summary) { margin-top: .5rem; }
+
+  /* Callouts */
+  aside {
+    padding: .75rem 1rem;
+    border-radius: 6px;
+    margin: .75rem 0;
+    font-size: .92rem;
+  }
+  aside.warn  { background: var(--warn-bg); border-left: 4px solid var(--warn-border); }
+  aside.tip   { background: var(--tip-bg); border-left: 4px solid var(--tip-border); }
+  aside.note  { background: var(--note-bg); border-left: 4px solid var(--note-border); }
+  aside::before {
+    display: block;
+    font-weight: 700;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .3rem;
+  }
+  aside.tip::before  { content: "💡 提示"; color: var(--tip-border); }
+  aside.warn::before { content: "⚠️ 注意"; color: var(--warn-border); }
+  aside.note::before { content: "📝 笔记"; color: var(--note-border); }
+
+  /* Definition list */
+  dl { margin: .75rem 0; }
+  dt { font-weight: 600; color: var(--accent); margin-top: .5rem; }
+  dd { margin-left: 1.5rem; color: var(--muted); }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: .75rem 0;
+    font-size: .9rem;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: .5rem .75rem;
+    text-align: left;
+  }
+  th { background: var(--surface); font-weight: 600; }
+  tr:nth-child(even) { background: var(--surface); }
+
+  /* kbd */
+  kbd {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: .1em .4em;
+    font-size: .85em;
+    box-shadow: 0 1px 0 var(--border);
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.2rem; }
+    pre { font-size: .78rem; }
+  }
+</style>
+</head>
+<body>
+
+<h1>M3 学习笔记：Go 模板引擎与声明式代码生成</h1>
+
+<dl class="metadata">
+  <dt>Milestone</dt><dd>M3</dd>
+  <dt>状态</dt><dd>进行中 (Phase 2/7)</dd>
+  <dt>三轨</dt><dd>Go 语言 / Android 逆向 / AI 编程范式</dd>
+  <dt>前置</dt><dd>已掌握 M1-M2（package/struct/error/cobra/concurrency）</dd>
+</dl>
+
+<nav class="toc" aria-label="目录">
+  <h2>📑 目录</h2>
+  <ol>
+    <li><a href="#go-track">Go 语言轨道：模板引擎与资源嵌入</a>
+      <ol>
+        <li><a href="#go-template">text/template — 数据驱动的文本生成</a></li>
+        <li><a href="#go-embed">embed.FS — 编译时文件内嵌</a></li>
+        <li><a href="#go-builder">strings.Builder — 高效字符串拼接</a></li>
+        <li><a href="#go-phase2">Phase 2 知识点</a>
+          <ol>
+            <li><a href="#go-switch">switch 类型分发</a></li>
+            <li><a href="#go-map">map[string]int O(1) 去重</a></li>
+            <li><a href="#go-omitempty">struct tag omitempty</a></li>
+          </ol>
+        </li>
+        <li><a href="#go-warnings">ValidationError.Warnings 设计</a></li>
+      </ol>
+    </li>
+    <li><a href="#rev-track">Android 逆向轨道：Frida JS API 全景</a>
+      <ol>
+        <li><a href="#rev-perform">Java.perform</a></li>
+        <li><a href="#rev-use">Java.use + .implementation</a></li>
+        <li><a href="#rev-overload">overload() 签名匹配</a></li>
+        <li><a href="#rev-interceptor">Interceptor.attach</a></li>
+        <li><a href="#rev-send">send() 消息</a></li>
+        <li><a href="#rev-hooktype">HookType 三态设计</a></li>
+      </ol>
+    </li>
+    <li><a href="#ai-track">AI 编程范式轨道：代码生成器设计哲学</a>
+      <ol>
+        <li><a href="#ai-declarative">声明式 vs 命令式</a></li>
+        <li><a href="#ai-template">模板即契约</a></li>
+        <li><a href="#ai-speckit">M3 在 SpecKit 全流程中</a></li>
+        <li><a href="#ai-breaking">Semantic Versioning &amp; Breaking Change</a></li>
+      </ol>
+    </li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<!-- 一、Go 语言轨道 -->
+<!-- ============================================================ -->
+
+<h2 id="go-track">一、Go 语言轨道：模板引擎与资源嵌入</h2>
+
+<p>M3 引入 Go 的三个标准库概念：<code>text/template</code>（模板引擎）、<code>embed.FS</code>（编译时文件内嵌）、<code>strings.Builder</code>（高效字符串拼接）。组合使用它们可以构建出<strong>零外部依赖的代码生成器</strong>。</p>
+
+<!-- 1.1 text/template -->
+<h3 id="go-template">1.1 text/template — 数据驱动的文本生成</h3>
+
+<p><code>text/template</code> 是 Go 标准库的模板引擎，核心思想：<strong>定义静态文本模板 + 注入动态数据 → 输出渲染文本</strong>。</p>
+
+<pre data-lang="go"><code>package main
+
+import (
+    "os"
+    "text/template"
+)
+
+type Person struct {
+    Name string
+    Age  int
+}
+
+func main() {
+    // 定义模板 — 注意 {{ }} 内的 .Name .Age 是数据字段
+    tmplStr := "Hello, my name is {{.Name}}. I am {{.Age}} years old."
+    tmpl, _ := template.New("greeting").Parse(tmplStr)
+
+    // 注入数据 — Execute 把渲染结果写到 io.Writer
+    tmpl.Execute(os.Stdout, Person{Name: "BIGSMATER", Age: 28})
+}
+// 输出: Hello, my name is BIGSMATER. I am 28 years old.</code></pre>
+
+<table>
+  <caption>模板核心语法</caption>
+  <thead>
+    <tr><th>语法</th><th>含义</th><th>M3 中的用途</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>{{.Field}}</code></td><td>注入字段值</td><td><code>{{.ClassName}}</code> → 类全限定名</td></tr>
+    <tr><td><code>{{if .Cond}}...{{else}}...{{end}}</code></td><td>条件渲染</td><td>判断 <code>MethodSignature</code> 是否为空</td></tr>
+    <tr><td><code>{{range .Items}}...{{end}}</code></td><td>循环渲染</td><td>无（M3 不做签名分割）</td></tr>
+  </tbody>
+</table>
+
+<aside class="warn">
+  <p><code>text/template</code> vs <code>html/template</code>：后者会自动 HTML 转义（<code>&lt;</code> → <code>&amp;lt;</code>）。生成 JavaScript 代码<strong>必须用</strong> <code>text/template</code>，否则 JS 语法会被破坏。</p>
+</aside>
+
+<details>
+  <summary>危险示范 — html/template 会毁掉 JS</summary>
+  <pre><code>// 模板: "if (a &lt; b)"</code>
+  <code>// html/template 输出: "if (a &amp;lt; b)" &larr; 语法错误！</code></pre>
+</details>
+
+
+<!-- 1.2 embed.FS -->
+<h3 id="go-embed">1.2 embed.FS — 编译时文件内嵌</h3>
+
+<p><code>embed</code> 包允许在<strong>编译时</strong>把文件目录"嵌入"到 Go 二进制中。生成的程序不需要任何外部文件。</p>
+
+<pre data-lang="go"><code>package main
+
+import (
+    "embed"
+    "fmt"
+)
+
+//go:embed data/*.txt
+var staticFS embed.FS
+
+func main() {
+    // 从内嵌 FS 读取文件 — 跟 os.ReadFile 一样的 API
+    data, _ := staticFS.ReadFile("data/hello.txt")
+    fmt.Println(string(data))
+
+    // 遍历内嵌目录
+    entries, _ := staticFS.ReadDir("data")
+    for _, e := range entries {
+        fmt.Println(e.Name())
+    }
+}</code></pre>
+
+<dl>
+  <dt>//go:embed 规则</dt>
+  <dd>必须紧邻 <code>var</code> 声明，中间不能有空行</dd>
+  <dd>路径相对源文件所在目录</dd>
+  <dd>支持 glob：<code>templates/*.js.tmpl</code></dd>
+  <dd>内嵌发生在编译期 — 运行时<strong>不可修改</strong></dd>
+</dl>
+
+<!-- 1.3 strings.Builder -->
+<h3 id="go-builder">1.3 strings.Builder — 高效字符串拼接</h3>
+
+<p>常规字符串拼接每次都分配新内存。 <code>strings.Builder</code> 内部用 <code>[]byte</code> 缓冲，避免重复分配。</p>
+
+<pre data-lang="go"><code>// ❌ 每次 + 都分配新内存
+s := ""
+for i := 0; i &lt; 1000; i++ {
+    s += "hello"
+}
+
+// ✅ Builder 只分配一次
+var b strings.Builder
+for i := 0; i &lt; 1000; i++ {
+    b.WriteString("hello")
+}
+result := b.String()</code></pre>
+
+<aside class="tip">
+  <p>拼接 &gt;10 次时 Builder 比 <code>+</code> 快 <strong>10–100 倍</strong>。</p>
+</aside>
+
+<!-- 1.4 Phase 2 -->
+<h3 id="go-phase2">1.4 Phase 2 知识点</h3>
+
+<div class="phase-nav"><strong>📍 Phase 2 内容</strong> — 修改了 <code>pkg/spec/types.go</code> 和 <code>pkg/config/validator.go</code></div>
+
+<!-- switch -->
+<h4 id="go-switch">1.4.1 switch 类型分发</h4>
+
+<p>校验器需要根据 <code>HookType</code> 执行不同校验逻辑。Go 的 <code>switch</code> 不需要 <code>break</code>（自动隐含）。</p>
+
+<pre data-lang="go"><code>// 项目实际代码 — pkg/config/validator.go
+switch h.HookType {
+case spec.HookTypeOverload, spec.HookTypeOverride:
+    if h.ClassName == "" {
+        ve.Add(prefix+".class_name", "不能为空", 0)
+    }
+case spec.HookTypeNative:
+    if h.ModuleName == "" {
+        ve.Add(prefix+".module_name", "不能为空（native Hook 需要 module_name）", 0)
+    }
+default:
+    ve.Add(prefix+".hook_type",
+        fmt.Sprintf("不支持的值 %q，有效的 Hook 类型: overload, override, native", h.HookType),
+        0)
+}</code></pre>
+
+<p>这就实现了"Java 类型要求 ClassName，Native 类型要求 ModuleName"的差异化校验——同一循环，三条路径。</p>
+
+<!-- map dedup -->
+<h4 id="go-map">1.4.2 map[string]int — O(1) 哈希去重</h4>
+
+<pre data-lang="go"><code>// 独立示例
+func hasDuplicates(items []string) int {
+    seen := make(map[string]int)  // key &rarr; 首次出现的索引
+    for i, item := range items {
+        if prevIdx, exists := seen[item]; exists {
+            return prevIdx
+        }
+        seen[item] = i
+    }
+    return -1
+}</code></pre>
+
+<pre data-lang="go"><code>// 项目实际代码 — pkg/config/validator.go
+seen := make(map[string]int)
+for i, h := range s.Hooks {
+    dupKey := fmt.Sprintf("%s|%s|%s|%s",
+        h.ClassName, h.MethodName, h.MethodSignature, h.HookType)
+    if prevIdx, exists := seen[dupKey]; exists {
+        ve.AddWarning(prefix+".hook_type",
+            fmt.Sprintf("与 hooks[%d] 重复 ...", prevIdx), 0)
+    } else {
+        seen[dupKey] = i
+    }
+}</code></pre>
+
+<aside class="tip">
+  <p>HashMap 查找 O(1) vs 二层循环 O(n²)：100 个 Hook 的重复检测，HashMap 只需 100 次比较，二层循环需要 4950 次。</p>
+</aside>
+
+<!-- omitempty -->
+<h4 id="go-omitempty">1.4.3 struct tag omitempty — 可选字段</h4>
+
+<pre data-lang="go"><code>type HookTarget struct {
+    ClassName       string   `yaml:"class_name"`
+    MethodSignature string   `yaml:"method_signature,omitempty"`  // &larr; 可选
+    ModuleName      string   `yaml:"module_name,omitempty"`        // &larr; 可选
+}</code></pre>
+
+<dl>
+  <dt>omitempty 语义</dt>
+  <dd><strong>序列化时</strong>：零值字段不输出</dd>
+  <dd><strong>反序列化时</strong>：YAML 中没有此字段 → 保留零值</dd>
+</dl>
+
+<p>所以 YAML 可以只写需要的字段：</p>
+
+<pre data-lang="yaml"><code>hooks:
+  - class_name: com.example.Foo
+    method_name: bar
+    hook_type: overload
+    # method_signature 和 module_name 都是可选的</code></pre>
+
+<!-- 1.5 Warnings -->
+<h3 id="go-warnings">1.5 ValidationError 的 Warnings 字段</h3>
+
+<p>设计关键：Warnings 不阻止生成，但需要通知调用者。</p>
+
+<pre data-lang="go"><code>type ValidationError struct {
+    Errors   []FieldError  // 阻止生成
+    Warnings []FieldError  // 不阻止生成，但应展示
+}
+
+// 返回逻辑：
+// HasErrors()            &rarr; 拒绝
+// HasWarnings() + !HasErrors() &rarr; err != nil 但 Error() == ""
+//   &rarr; 调用者需检查 ve.HasWarnings()</code></pre>
+
+<aside class="note">
+  <p><strong>为什么返回 error 而不是 nil？</strong> 调用者需要知道"有 warning"。Go 的 <code>error</code> 接口是最自然的传递方式——携带 Warnings 的 ValidationError 也是合法的 error 值。</p>
+</aside>
+
+
+<!-- 1.6 Phase 3 知识点 -->
+<h3 id="go-phase3">1.6 Phase 3 知识点：自定义错误类型与 error 接口</h3>
+
+<div class="phase-nav"><strong>📍 Phase 3 内容</strong> — 创建了 <code>pkg/codegen/types.go</code> 和 <code>pkg/codegen/errors.go</code></div>
+
+<h4>1.6.1 Go 的 error 接口——最简单也最强大的接口</h4>
+
+<p>Go 的 <code>error</code> 接口只有<strong>一个方法</strong>：</p>
+
+<pre data-lang="go"><code>// 这就是标准库的 error 接口——完整定义
+type error interface {
+    Error() string
+}</code></pre>
+
+<p>任何实现了 <code>Error() string</code> 的类型都是合法的 error。这意味着你可以创建<strong>携带结构化信息</strong>的错误：</p>
+
+<pre data-lang="go"><code>// ❌ 字符串错误 — 机器无法提取信息
+fmt.Errorf("template parse failed: %v", err)
+
+// ✅ 结构化错误 — 可以通过 errors.Is / errors.As 精确判断
+type TemplateError struct {
+    Op   string  // "parse" 还是 "render"?
+    Name string  // 哪个模板出错了?
+    Err  error   // 原始错误是什么?
+}</code></pre>
+
+<aside class="tip">
+  <p><strong>对比其他语言</strong>：Java/C# 用 <code>try/catch</code> + 异常类继承；Go 用返回值传递错误 + 接口统一。Go 的方式更显式——你无法"忘记处理"一个错误，因为它就是一个普通的返回值。</p>
+</aside>
+
+<h4>1.6.2 Unwrap() — 错误链的穿透</h4>
+
+<p>Go 1.13 引入 <code>Unwrap() error</code> 约定：如果一个错误实现了这个方法，<code>errors.Is()</code> 和 <code>errors.As()</code> 就能穿透错误链查找底层原因。</p>
+
+<pre data-lang="go"><code>// 项目实际代码 — pkg/codegen/errors.go
+func (e *TemplateError) Unwrap() error {
+    return e.Err
+}
+
+// 使用方：
+var te *TemplateError
+if errors.As(err, &te) {
+    fmt.Println("模板操作失败:", te.Op, "模板:", te.Name)
+    // 还能拿到原始 text/template 的错误
+    fmt.Println("底层原因:", te.Unwrap())
+}
+</code></pre>
+
+<details>
+  <summary>错误链类比：快递包裹</summary>
+  <pre><code>外包装: "codegen: parse template 'overload.js.tmpl': ..."
+  │ .Unwrap()
+  ▼
+内层:   "template: overload.js.tmpl:3: unexpected \"error\" in operand"
+  │ .Unwrap()
+  ▼
+最内层: *text/template 的原始错误对象</code></pre>
+  <p>——你可以精确地判断"是不是模板语法错误"（而非"是不是 IO 错误"），而不需要 <code>strings.Contains</code> 匹配错误文字。</p>
+</details>
+
+<h4>1.6.3 项目实际代码</h4>
+
+<pre data-lang="go"><code>// pkg/codegen/types.go — 你写的代码
+type GenerateOutput struct {
+    Combined string            // 完整可执行 Frida JS 脚本
+    Scripts  []GeneratedScript // 各 Hook 独立代码段
+}
+
+type GeneratedScript struct {
+    HookTarget spec.HookTarget // 原始 Hook 目标
+    JSCode     string          // 生成的 JavaScript 代码段
+}
+
+type RenderContext struct {
+    AppPackage      string // 父级 HookSpec.AppPackage
+    ClassName       string // 目标类名 (Java hooks)
+    MethodName      string // 目标方法/函数名
+    HookType        string // "overload" / "override" / "native"
+    MethodSignature string // 参数签名整串 (空→无签名)
+    ModuleName      string // Native .so 模块名
+}</code></pre>
+
+<p><strong>RenderContext 设计原则</strong>：它是一个<strong>扁平结构体</strong>——所有字段都是标量（string），没有嵌套对象。这是故意为之：<code>text/template</code> 的 <code>{{.Field}}</code> 语法适合扁平对象，嵌套会变成 <code>{{.Nested.Field}}</code>，增加模板复杂度。所以 <code>HookTarget</code> 的字段被"展开"成 <code>RenderContext</code> 的一级字段，外加 <code>AppPackage</code>（来自父级 <code>HookSpec</code>）。</p>
+
+<pre data-lang="go"><code>// pkg/codegen/errors.go — 你写的代码
+type TemplateError struct {
+    Op   string // "parse" (编译) 或 "render" (渲染)
+    Name string // 模板文件名 (如 "overload.js.tmpl")
+    Err  error  // 底层 text/template 错误
+}
+
+type GenerateError struct {
+    Op  string // "generate"
+    Err error  // 底层错误
+}</code></pre>
+
+<p><strong>什么时候用 TemplateError vs GenerateError？</strong></p>
+<ul>
+  <li><code>TemplateError</code>：<code>NewGenerator()</code> 编译模板失败时 —— 这发生在程序启动时，是开发期 bug</li>
+  <li><code>GenerateError</code>：<code>Generate()</code> 运行时遇到非法状态 —— 比如传入 nil HookSpec</li>
+</ul>
+
+<p>两者都实现 <code>Error()</code> 和 <code>Unwrap()</code>——跟 M2 的 <code>DeviceError/SessionError/ScriptError</code> 一样的模式。这是项目中所有自定义错误的统一契约。</p>
+
+
+<!-- ============================================================ -->
+<!-- 二、Android 逆向轨道 -->
+<!-- ============================================================ -->
+
+<h2 id="rev-track">二、Android 逆向轨道：Frida JS API 全景</h2>
+
+<p>M3 生成的是 Frida JavaScript 脚本。理解三种 Hook 模式对应的 Frida API 是正确生成代码的前提。</p>
+
+<!-- 2.1 -->
+<h3 id="rev-perform">2.1 Java.perform — JVM 上下文入口</h3>
+
+<pre data-lang="javascript"><code>Java.perform(function() {
+    // 此回调在目标应用的 JVM 线程内执行
+    // 所有 Java.use() / Java.choose() 必须在此内部
+    var System = Java.use("java.lang.System");
+    console.log(System.currentTimeMillis());
+});</code></pre>
+
+<aside class="note">
+  <p><strong>为什么必须 Java.perform()？</strong> Frida 的 Java bridge 需要 JNI 环境（JNIEnv 指针），而这个环境只在 ART 虚拟机线程中有效。Java.perform() 确保回调执行时 JNI 环境已就绪。</p>
+</aside>
+
+<!-- 2.2 -->
+<h3 id="rev-use">2.2 Java.use() + .implementation — Java 方法 Hook</h3>
+
+<pre data-lang="javascript"><code>Java.perform(function() {
+    var Crypto = Java.use("com.example.Crypto");
+
+    // overload 模式 — 拦截，但保留原方法行为
+    Crypto.encrypt.overload().implementation = function(input) {
+        var result = this.encrypt(input);      // &larr; 调用原方法
+        return result;                          // &larr; 返回原结果
+    };
+});</code></pre>
+
+<table>
+  <caption>overload vs override</caption>
+  <thead><tr><th></th><th>overload</th><th>override</th></tr></thead>
+  <tbody>
+    <tr><td>调用原方法</td><td><code>this.method(args)</code> ✅</td><td>❌</td></tr>
+    <tr><td>原方法行为</td><td>完全保留（只加日志）</td><td>完全替换</td></tr>
+    <tr><td>返回值</td><td>原返回值</td><td>自定义</td></tr>
+  </tbody>
+</table>
+
+<!-- 2.3 -->
+<h3 id="rev-overload">2.3 overload() — 方法签名匹配</h3>
+
+<p>Java 允许重载（同名多方法），Frida 用 <code>.overload()</code> 区分：</p>
+
+<pre data-lang="javascript"><code>// 无参数 &rarr; 匹配第一个找到的同名方法
+Target.method.overload().implementation = function() { ... }
+
+// 有签名 &rarr; 精确匹配参数类型列表
+Target.method.overload('java.lang.String', 'int').implementation = function(s, n) { ... }</code></pre>
+
+<p>M3 的 <code>method_signature</code> 字段整串原样注入——用户负责写 Frida 合法格式。</p>
+
+<!-- 2.4 -->
+<h3 id="rev-interceptor">2.4 Interceptor.attach — Native 层函数 Hook</h3>
+
+<pre data-lang="javascript"><code>var module = Process.findModuleByName("libnative-lib.so");
+if (module === null) {
+    console.log("[-] Module not found");
+    return;
+}
+
+var addr = Module.findExportByName("libnative-lib.so", "open");
+if (addr === null) {
+    console.log("[-] Export not found");
+    return;
+}
+
+Interceptor.attach(addr, {
+    onEnter: function(args) {
+        // args[0] 是第一个参数 (ARM64: x0)
+        console.log("[+] open() called, fd=" + args[0].toInt32());
+    },
+    onLeave: function(retval) {
+        console.log("[+] open() returned: " + retval.toInt32());
+    }
+});</code></pre>
+
+<!-- 2.5 -->
+<h3 id="rev-send">2.5 send() — 向宿主机发送结构化消息</h3>
+
+<p>Hook 执行在目标进程内。要把数据传回开发机，用 <code>send()</code>：</p>
+
+<pre data-lang="javascript"><code>send(JSON.stringify({
+    event: "method_enter",
+    class:  "com.example.Crypto",
+    method: "encrypt",
+    args:   ["plaintext data"],
+    timestamp: Date.now()
+}));</code></pre>
+
+<!-- 2.6 -->
+<h3 id="rev-hooktype">2.6 HookType 三态设计</h3>
+
+<div class="phase-nav"><strong>📍 Phase 2 内容</strong></div>
+
+<table>
+  <thead>
+    <tr><th>类型</th><th>YAML 值</th><th>Frida API</th><th>class_name</th><th>module_name</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="badge badge-go">overload</span></td>
+      <td><code>"overload"</code></td>
+      <td>Java.use + .implementation + this.method()</td>
+      <td>必填</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-rev">override</span></td>
+      <td><code>"override"</code></td>
+      <td>Java.use + .implementation（无原调用）</td>
+      <td>必填</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-ai">native</span></td>
+      <td><code>"native"</code></td>
+      <td>Interceptor.attach</td>
+      <td>—</td>
+      <td>必填</td>
+    </tr>
+  </tbody>
+</table>
+
+<details>
+  <summary>为什么 native 用 module_name 而不是 class_name？</summary>
+  <p>Frida 的 Native Hook 定位函数需要两个关键信息：</p>
+  <ol>
+    <li><code>.so</code> 文件名（<code>Process.findModuleByName("libc.so")</code>）</li>
+    <li>导出函数名（<code>Module.findExportByName("libc.so", "open")</code>）</li>
+  </ol>
+  <p>Android 的 Java 类有包名体系（<code>com.example.app</code>），Native 库只有文件名（<code>libnative-lib.so</code>）。二者不能混用同一个字段。Phase 2 的 validator 通过 <code>switch h.HookType</code> 判断走哪条校验路径。</p>
+</details>
+
+
+<!-- ============================================================ -->
+<!-- 三、AI 编程范式轨道 -->
+<!-- ============================================================ -->
+
+<h2 id="ai-track">三、AI 编程范式轨道：代码生成器设计哲学</h2>
+
+<!-- 3.1 -->
+<h3 id="ai-declarative">3.1 声明式 vs 命令式 — 为什么需要代码生成器</h3>
+
+<p>FridaForge 解决的核心问题：<strong>让人写声明（YAML），让机器写命令（JS）</strong>。</p>
+
+<pre data-lang="yaml"><code># 声明式 (YAML) — 用户写这个
+hook_type: overload
+class_name: com.example.Crypto
+method_name: encrypt</code></pre>
+
+<p style="text-align:center;font-size:1.5rem;margin:.5rem 0">&darr; <code>Generator.Generate()</code> &darr;</p>
+
+<pre data-lang="javascript"><code>// 命令式 (Frida JS) — 机器生成这个
+Crypto.encrypt.overload().implementation = function(input) {
+    var result = this.encrypt(input);
+    send(JSON.stringify({event: "enter", ...}));
+    return result;
+};</code></pre>
+
+<p>一条 YAML 膨胀为 10+ 行 JS。手写容易出错（忘 <code>send()</code>、忘 <code>Java.perform</code>、签名打错），代码生成器保证每个 Hook 遵循同一模式。</p>
+
+<!-- 3.2 -->
+<h3 id="ai-template">3.2 模板即契约</h3>
+
+<p>在 SpecKit 工作流中，模板（.js.tmpl）承担了"契约"角色：</p>
+
+<pre><code>spec.md          &rarr; 定义 WHAT（用户故事、功能需求）
+plan.md          &rarr; 定义 HOW（架构、包结构）
+data-model.md    &rarr; 定义实体映射
+templates/*.tmpl &rarr; 定义 OUTPUT（How 的具象化）
+tasks.md         &rarr; 定义 ORDER（逐步实现）</code></pre>
+
+<p>模板一旦写好，任何合法的 HookSpec 都能生成正确的 JS——YAML 就是正确答案的保证。</p>
+
+<!-- 3.3 -->
+<h3 id="ai-speckit">3.3 M3 在 SpecKit 全流程中的位置</h3>
+
+<pre><code>/speckit.specify  &rarr; spec.md      (4 User Stories, 18 FR)       ✅
+/speckit.clarify  &rarr; 3 个边界问题澄清                            ✅
+/speckit.plan     &rarr; plan + research + data-model + contracts    ✅
+/speckit.tasks    &rarr; 36 tasks, 7 phases                          ✅
+/speckit.analyze  &rarr; 8 findings, 全修复                           ✅
+/speckit.implement &rarr; Phase 1 (教学+模板) &rarr; Phase 2 (数据模型)    ⬅️ 进行中</code></pre>
+
+<!-- 3.4 -->
+<h3 id="ai-breaking">3.4 Semantic Versioning &amp; Breaking Change</h3>
+
+<div class="phase-nav"><strong>📍 Phase 2 内容</strong></div>
+
+<p>FridaForge 遵循 <code>0.x.y</code> 版本号，这一阶段<strong>允许 Breaking Change</strong>。</p>
+
+<p>Phase 2 做了一个 Breaking Change：删除了旧的 <code>hook_type: "replace"</code>，重命名为 <code>"override"</code>。</p>
+
+<aside class="warn">
+  <p><strong>Breaking Change：</strong> <code>HookTypeReplace = "replace"</code> &rarr; <code>HookTypeOverride = "override"</code></p>
+  <p>测试文件中的 YAML 夹具从 <code>hook_type: replace</code> 改为 <code>hook_type: override</code>，常量从 <code>HookTypeReplace</code> 改为 <code>HookTypeOverride</code>。</p>
+  <p>不留别名，不搞 "deprecated 过渡期" — <code>0.x.y</code> 阶段的特权。</p>
+</aside>
+
+</body>
+</html>
