@@ -104,9 +104,9 @@
 
 **独立测试**: `fridaforge spec generate valid.yaml` 输出 JS 到 stdout，`-o out.js` 写入文件，无效 YAML 报错
 
-- [ ] T024 [US1] 在 `cmd/fridaforge/spec.go` 新增 `specGenerateCmd` cobra 子命令: Use="generate <文件>"，Short="生成 Frida JS Hook 脚本"，Args=cobra.ExactArgs(1)，RunE 实现: LoadSpec → Validate → NewGenerator → Generate → 输出
-- [ ] T025 [US1] 在 `cmd/fridaforge/spec.go` 添加 `-o, --output` flag (string) 和 `-t, --target` flag (string) — -o 控制文件输出 vs stdout，-t 按 `className.methodName` 精确匹配过滤 (不含 signature)
-- [ ] T026 [US1] 在 `cmd/fridaforge/spec.go` 的 RunE 中实现 `-o` 输出逻辑: 指定时 `os.WriteFile`，未指定时 `fmt.Println(Combined)`
+- [x] T024 [US1] 在 `cmd/fridaforge/spec.go` 新增 `specGenerateCmd` cobra 子命令: Use="generate <文件>"，Short="生成 Frida JS Hook 脚本"，Args=cobra.ExactArgs(1)，RunE 实现: LoadSpec → Validate → NewGenerator → Generate → 输出
+- [x] T025 [US1] 在 `cmd/fridaforge/spec.go` 添加 `-o, --output` flag (string) 和 `-t, --target` flag (string) — -o 控制文件输出 vs stdout，-t 按 `className.methodName` 精确匹配过滤 (不含 signature)
+- [x] T026 [US1] 在 `cmd/fridaforge/spec.go` 的 RunE 中实现 `-o` 输出逻辑: 指定时 `os.WriteFile`，未指定时 `fmt.Println(Combined)`
 
 **Checkpoint**: CLI `fridaforge spec generate` 端到端可用
 
