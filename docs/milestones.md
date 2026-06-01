@@ -2,7 +2,7 @@
 
 > 本文档记录项目从 M0 到 M7 的完整里程碑路线图。每个 Milestone 的执行严格遵循 SpecKit 工作流。
 
-## 当前状态：M2 完成 → 准备进入 M3
+## 当前状态：M3 完成 → 准备进入 M4
 
 ---
 
@@ -41,13 +41,15 @@
 
 ---
 
-## M3：声明式代码生成器（`codegen`）
+## M3：声明式代码生成器（`codegen`）✅
 
 | 维度 | 内容 |
 |------|------|
 | **Go 知识** | `text/template` 模板渲染、`embed.FS` 内嵌文件、`strings.Builder`、`go generate`、`os/exec` |
 | **逆向知识** | Frida JS API 深度：`Java.perform()`, `Java.use()`, `.implementation =`, `this.xxx()` 原方法调用；Hook 类型模板化 (Override/Overload/Native) |
 | **Harness** | 扩展 M2 的测试 App（加 Native 函数），验证生成脚本正确性 |
+| **产出物** | `pkg/codegen/` 7 个源文件 (generator.go, templates.go, types.go, errors.go + 4 test + 1 integration test); `pkg/spec/types.go` 新增 native/override + 2 字段; `pkg/config/validator.go` 升级校验; `cmd/fridaforge/spec.go` 新增 generate 子命令; 3 个模板文件 (.js.tmpl); 教学文档 .md + .html; 30 tests; 覆盖率 97% |
+| **已提交** | commit `0d6257a` |
 
 ---
 

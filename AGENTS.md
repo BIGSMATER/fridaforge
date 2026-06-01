@@ -9,7 +9,7 @@
     6. specs/003-codegen/plan.md         ← M3 实施计划（当前 — 实现中）
 
     项目: FridaForge — 声明式 Frida 脚本工程化平台
-    当前: M3 实现中 (声明式代码生成器) — Phase 3 完成, Phase 4 待开始
+    当前: M3 完成 (声明式代码生成器) — Phase 7 打磨完成, 准备进入 M4
     用户: BIGSMATER — 已掌握 Go 并发模型 (goroutine/context/channel/Mutex/WaitGroup)
     教学模式: 三轨并行 (Go + 逆向 + AI 范式) / SpecKit 严格工作流 / 讲解与编码交替进行
     导师角色: SpecKit 规划阶段先行（瀑布式）→ 实现阶段讲解与编码交替（每 Phase = 独立示例讲解 → 编码 → 补充项目代码示例 → 确认）

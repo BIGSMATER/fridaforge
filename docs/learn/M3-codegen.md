@@ -1,6 +1,6 @@
 # M3 学习笔记：Go 模板引擎与声明式代码生成
 
-> Milestone: M3 | 状态: 进行中 (Phase 1/7)
+> Milestone: M3 | 状态: 已完成 (Phase 1/7)
 > 三轨并行：Go 语言 / Android 逆向 / AI 编程范式
 > 前置：本阶段假设学员已掌握 M1-M2 内容（package/struct/error/cobra/concurrency）
 

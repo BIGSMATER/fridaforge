@@ -29,8 +29,8 @@ func TestRenderTemplate(t *testing.T) {
 	tests := []struct {
 		name     string
 		ctx      RenderContext
-		contains []string        // substrings expected in output
-		excludes []string        // substrings NOT expected in output
+		contains []string // substrings expected in output
+		excludes []string // substrings NOT expected in output
 	}{
 		{
 			name: "overload with signature",

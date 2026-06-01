@@ -79,8 +79,8 @@ func TestGenerate(t *testing.T) {
 			},
 			contains: []string{
 				"Java.perform(function() {", // 开头
-				"});",                         // Java.perform 结束
-				"Interceptor.attach",           // Native 在其后
+				"});",                       // Java.perform 结束
+				"Interceptor.attach",        // Native 在其后
 			},
 		},
 		{
@@ -93,7 +93,7 @@ func TestGenerate(t *testing.T) {
 				},
 			},
 			contains: []string{
-				"});",              // Java.perform 结束
+				"});",                // Java.perform 结束
 				"Interceptor.attach", // Native 在其后
 			},
 		},
