@@ -1,33 +1,32 @@
-// Package codegen provides a declarative Frida JavaScript code generator.
-// It reads a HookSpec (from pkg/spec) and renders executable Frida JS scripts
-// via text/template from embedded template files.
+// Package codegen 提供声明式 Frida JavaScript 代码生成能力。
+// 读取 HookSpec（来自 pkg/spec），通过内嵌模板渲染可执行的 Frida JS 脚本。
 package codegen
 
 import "github.com/bigsmater/fridaforge/pkg/spec"
 
-// GenerateOutput holds the result of a Generate() call.
+// GenerateOutput 表示一次 Generate() 调用的完整输出。
 type GenerateOutput struct {
-	// Combined is the complete executable Frida JavaScript script, with all
-	// Java hooks wrapped in a single Java.perform() and Native hooks appended after.
+	// Combined 是完整的可执行 Frida JavaScript 脚本：
+	// 所有 Java hooks 包裹在单个 Java.perform() 内，Native hooks 追加在其后。
 	Combined string
 
-	// Scripts holds the individual generated JavaScript snippet for each HookTarget.
+	// Scripts 包含每个 HookTarget 对应的独立生成代码段。
 	Scripts []GeneratedScript
 }
 
-// GeneratedScript pairs a HookTarget with its rendered JavaScript code.
+// GeneratedScript 将 HookTarget 与生成的 JavaScript 代码配对。
 type GeneratedScript struct {
 	HookTarget spec.HookTarget
 	JSCode     string
 }
 
-// RenderContext provides the data injected into a template during rendering.
-// Fields are populated by Generator.Generate() before calling renderTemplate().
+// RenderContext 提供模板渲染时注入的数据上下文。
+// 由 Generator.Generate() 在调用 renderTemplate() 前填充。
 type RenderContext struct {
-	AppPackage      string // parent HookSpec.AppPackage
-	ClassName       string // target class name (Java hooks)
-	MethodName      string // target method or function name
+	AppPackage      string // 父级 HookSpec.AppPackage
+	ClassName       string // 目标类全限定名（Java hooks）
+	MethodName      string // 目标方法名或函数名
 	HookType        string // "overload" / "override" / "native"
-	MethodSignature string // full method signature string (empty → no signature)
-	ModuleName      string // .so module name (Native hooks only)
+	MethodSignature string // 参数签名整串（空 → 无签名匹配）
+	ModuleName      string // .so 模块名（仅 Native hooks）
 }

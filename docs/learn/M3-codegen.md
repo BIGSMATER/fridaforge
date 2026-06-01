@@ -54,7 +54,7 @@ func main() {
 // html/template 输出: "if (a &lt; b)"  ← 语法错误！
 ```
 
-> 📝 项目实际代码：§1.7 Phase 4 展示了 `templates.go` 中 `//go:embed` + `template.ParseFS()` + `ExecuteTemplate()` 的完整调用链
+> 📝 项目实际代码：§1.9 展示了 `templates.go` 中 `//go:embed` + `template.ParseFS()` + `ExecuteTemplate()` 的完整调用链
 
 ### 1.2 embed.FS — 编译时文件内嵌
 
@@ -96,7 +96,7 @@ func main() {
 - 不支持 `..` 父目录引用
 - 不支持指向源文件目录之外的路径
 
-> 📝 项目实际代码：§1.7 Phase 4 展示了完整的 embed.FS + ParseFS 组合
+> 📝 项目实际代码：§1.9 展示了完整的 embed.FS + ParseFS 组合
 
 ### 1.3 strings.Builder — 高效字符串拼接
 
@@ -128,13 +128,9 @@ result := b.String()        // 一次性转为 string
 - `Len()` — 当前内容长度
 - `String()` — 输出最终结果
 
-### 1.4 Phase 2 知识点：类型分发、结构体标签、去重算法
+### 1.4 类型分发 — switch 语句
 
-Phase 2 修改了 `pkg/spec/types.go` 和 `pkg/config/validator.go`。涉及三个 Go 知识点：
-
-#### 1.4.1 switch 类型分发
-
-校验器需要根据 `HookType` 执行不同校验逻辑。Go 的 `switch` 不需要 `break`（自动隐含）：
+校验器需要根据 `HookType` 对不同字段做不同校验。Go 的 `switch` 不需要 `break`（自动隐含），多 case 用逗号并列。
 
 ```go
 func validate(name string) {
@@ -171,7 +167,7 @@ default:
 
 这就实现了"Java 类型要求 ClassName，Native 类型要求 ModuleName"的差异化校验——同一个 `for i, h := range s.Hooks` 循环，三种类型走三条不同的校验路径。
 
-#### 1.4.2 map[string]int — O(1) 哈希去重
+### 1.5 map[string]int — O(1) 哈希去重
 
 重复 Hook 检测的核心数据结构：
 
@@ -211,7 +207,7 @@ for i, h := range s.Hooks {
 
 四个字段用 `|` 拼接成复合 key——只要有一个字段不同，key 就不同（不会误判为重复）。
 
-#### 1.4.3 struct tag omitempty — 可选字段
+### 1.6 struct tag omitempty — 可选字段
 
 ```go
 type HookTarget struct {
@@ -235,7 +231,7 @@ hooks:
     # method_signature 和 module_name 都是可选的，不写也行
 ```
 
-### 1.5 Phase 2 补充：ValidationError 的 Warnings 字段
+### 1.7 ValidationError 的 Warnings 字段
 
 原来的 `ValidationError` 只有 `Errors []FieldError`。Phase 2 新增了 `Warnings []FieldError`，因为"重复 Hook"不应阻止生成（只是提醒），但需要通过某种方式通知调用者。
 
@@ -254,11 +250,11 @@ type ValidationError struct {
 
 **为什么返回 error 而不是 nil？** 调用者需要知道"有 warning"这个事实。Go 的 `error` 接口是最自然的传递方式——即使没有 Errors，一个携带 Warnings 的 ValidationError 也是合法的 error 值。
 
-### 1.6 Phase 3 知识点：自定义错误类型与 error 接口
+### 1.8 Go 的 error 接口与自定义错误类型
 
 Phase 3 创建了 `pkg/codegen/types.go` 和 `pkg/codegen/errors.go`。核心 Go 概念：**error 接口 + Unwrap 错误链**。
 
-#### 1.6.1 Go 的 error 接口 — 最简单也最强大的接口
+#### 1.8.1 Go 的 error 接口 — 最简单也最强大的接口
 
 Go 的 `error` 接口只有一个方法：
 
@@ -285,7 +281,7 @@ type TemplateError struct {
 
 **对比其他语言**：Java/C# 用 `try/catch` + 异常类继承；Go 用返回值传递错误 + 接口统一。Go 的方式更显式——你无法"忘记处理"一个错误，因为它就是一个普通的返回值。
 
-#### 1.6.2 Unwrap() — 错误链的穿透
+#### 1.8.2 Unwrap() — 错误链的穿透
 
 Go 1.13 引入 `Unwrap() error` 约定——如果错误实现了这个方法，`errors.Is/As` 就能穿透错误链：
 
@@ -313,7 +309,7 @@ if errors.As(err, &te) {
 最内层: *text/template 的原始错误对象
 ```
 
-#### 1.6.3 项目实际代码
+#### 1.8.3 项目实际代码
 
 ```go
 // pkg/codegen/types.go — 你写的代码
@@ -359,9 +355,9 @@ type GenerateError struct {
 
 两者都实现 `Error()` + `Unwrap()` — 跟 M2 的 `DeviceError/SessionError/ScriptError` 一样的三明治模式。
 
-> 📝 项目实际代码：§1.7 Phase 4 展示了 strings.Builder 在 renderTemplate() 中的使用
+> 📝 项目实际代码：§1.9 展示了 strings.Builder 在 renderTemplate() 中的使用
 
-### 1.7 Phase 4 项目实际代码：templates.go — embed + Parse + Execute 三件套
+### 1.9 templates.go 项目代码 — embed + Parse + Execute 三件套
 
 Phase 4 的核心是 `pkg/codegen/templates.go`——这是 `//go:embed`、`template.ParseFS`、`template.ExecuteTemplate` 三者首次在项目中组合使用。
 
