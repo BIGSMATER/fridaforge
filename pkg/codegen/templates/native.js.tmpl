@@ -2,7 +2,7 @@ var nativeModule = Process.findModuleByName("{{.ModuleName}}");
 if (nativeModule === null) {
     console.log("[-] Module not found: {{.ModuleName}}");
 } else {
-    var targetAddr = Module.findExportByName("{{.ModuleName}}", "{{.MethodName}}");
+    var targetAddr = nativeModule.findExportByName("{{.MethodName}}");
     if (targetAddr === null) {
         console.log("[-] Export not found: {{.MethodName}}");
     } else {
