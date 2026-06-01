@@ -409,6 +409,58 @@ func (g *Generator) renderTemplate(ctx RenderContext) (string, error) {
 5. `switch ctx.HookType` — 类型分发选择模板文件，跟 Phase 2 validator 一样的模式
 6. 错误全用自定义 `TemplateError` 包装（带 Op/Name/Err ）— fail-fast
 
+### 1.10 generate.go 项目代码 — Generate() 组装逻辑
+
+Phase 5 实现了 `Generate()` 方法——它遍历所有 HookTarget，调用 `renderTemplate()` 生成 JS 片断，再按类型组装成一份完整脚本。
+
+```go
+// pkg/codegen/generator.go — 你写的代码
+func (g *Generator) Generate(s *spec.HookSpec) (*GenerateOutput, error) {
+    if s == nil || len(s.Hooks) == 0 {
+        return nil, &GenerateError{Op: "generate", Err: fmt.Errorf("空的 Hook 列表")}
+    }
+
+    var javaBlocks, nativeBlocks []string
+    var scripts []GeneratedScript
+
+    for _, hook := range s.Hooks {
+        ctx := RenderContext{
+            AppPackage: s.AppPackage, ClassName: hook.ClassName,
+            MethodName: hook.MethodName, HookType: string(hook.HookType),
+            MethodSignature: hook.MethodSignature, ModuleName: hook.ModuleName,
+        }
+        js, _ := g.renderTemplate(ctx)
+        scripts = append(scripts, GeneratedScript{HookTarget: hook, JSCode: js})
+
+        if hook.HookType == spec.HookTypeNative {
+            nativeBlocks = append(nativeBlocks, js)
+        } else {
+            javaBlocks = append(javaBlocks, js)
+        }
+    }
+
+    // 组装 Combined: Java hook 全在一个 Java.perform() 内，Native 裸放在后
+    var combined strings.Builder
+    if len(javaBlocks) > 0 {
+        combined.WriteString("Java.perform(function() {\n")
+        for _, b := range javaBlocks { combined.WriteString(b) }
+        combined.WriteString("});\n")
+    }
+    if len(nativeBlocks) > 0 {
+        for _, b := range nativeBlocks { combined.WriteString(b + "\n") }
+    }
+    return &GenerateOutput{Combined: combined.String(), Scripts: scripts}, nil
+}
+```
+
+**组装逻辑**：
+1. **分类** — 遍历 hooks，Java 类型扔进 `javaBlocks`，Native 扔进 `nativeBlocks`
+2. **包装** — Java blocks 全部套在单个 `Java.perform(function() { ... });` 内
+3. **追加** — Native blocks 裸放在 Java.perform 之后（不嵌套）
+4. **跳过** — 无 Java hooks 时不生成 `Java.perform()`；无 Native hooks 时不出额外空行
+
+> 完整测试覆盖：单类型、混合类型、空列表、nil spec — 共 11 个 table-driven case
+
 ---
 
 ## 二、Android 逆向轨道：Frida JS API 全景
@@ -551,7 +603,7 @@ Android 的 Java 类有包名体系（`com.example.app`），Native 库只有文
 - Java 方向（overload/override）：`class_name` 必填
 - Native 方向：`module_name` 必填
 
-> 📝 补充于 Phase 5: 项目实际生成脚本完整示例 — overload + override + native 混合
+> 📝 完整生成示例见 quickstart.md 或 §1.10 的 Generate() 测试用例——单次调用即可输出混合 Hook 的完整脚本
 
 ---
 
@@ -597,7 +649,7 @@ tasks.md         → 定义 ORDER（逐步实现）
 /speckit.implement → Phase 1 (当前) ──→ Phase 7                 ⬅️ 进行中
 ```
 
-> 📝 补充于 Phase 5: 项目架构实际代码 — `pkg/codegen/generator.go` 的 `Generate()` 方法展示 Spec→Template→Script 完整链条
+> 📝 `pkg/codegen/generator.go` 的 `Generate()` 完整实现见 §1.10 — HookSpec → renderTemplate() → GenerateOutput 的完整数据流
 
 ### 3.4 Phase 2 补充：Semantic Versioning 与 Breaking Change
 

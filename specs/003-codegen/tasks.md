@@ -85,12 +85,12 @@
 
 **独立测试**: 给定一个 3 Hook 的 HookSpec (覆盖 3 种类型)，`Generate()` 返回输出包含 Java.perform() + 2 个 Java hook + 1 个 Native hook
 
-- [ ] T018 [US1] 创建 `pkg/codegen/generator.go` — `NewGenerator()` 工厂（延迟到 NewGenerator 时才编译模板），`Generate(spec)` 方法：遍历 hooks，对每个 HookTarget 构建 RenderContext，调用 renderTemplate()，区分 Java/Native 组装 Combined
-- [ ] T019 [US1] 在 `pkg/codegen/generator.go` 的 `Generate()` 中实现 Java hooks 包裹在单个 `Java.perform(function() { ... })` 内，Native hooks 裸放在其后。无 Java hooks 时跳过 Java.perform() 包装
-- [ ] T020 [US3] 在 `pkg/codegen/generator.go` 中为 RenderContext 填充 MethodSignature 字段 (直接取自 HookTarget.MethodSignature)
-- [ ] T021 [US4] 在 `pkg/codegen/generator.go` 中为 Native RenderContext 忽略 ClassName/AppPackage，使用 ModuleName
-- [ ] T022 [US1] 创建 `pkg/codegen/generator_test.go` — table-driven: (1) 单 overload Hook 生成完整脚本，(2) 多 Hook 混合 (overload+override+native) Combined 结构验证，(3) 空 hooks → 错误，(4) Generate() 输出合法 JS (含 `Java.perform`)
-- [ ] T023 [US4] 在 `pkg/codegen/generator_test.go` 追加 pure-native Hook 测试 — 验证跳过 Java.perform()
+- [x] T018 [US1] 创建 `pkg/codegen/generator.go` — `NewGenerator()` 工厂（延迟到 NewGenerator 时才编译模板），`Generate(spec)` 方法：遍历 hooks，对每个 HookTarget 构建 RenderContext，调用 renderTemplate()，区分 Java/Native 组装 Combined
+- [x] T019 [US1] 在 `pkg/codegen/generator.go` 的 `Generate()` 中实现 Java hooks 包裹在单个 `Java.perform(function() { ... })` 内，Native hooks 裸放在其后。无 Java hooks 时跳过 Java.perform() 包装
+- [x] T020 [US3] 在 `pkg/codegen/generator.go` 中为 RenderContext 填充 MethodSignature 字段 (直接取自 HookTarget.MethodSignature)
+- [x] T021 [US4] 在 `pkg/codegen/generator.go` 中为 Native RenderContext 忽略 ClassName/AppPackage，使用 ModuleName
+- [x] T022 [US1] 创建 `pkg/codegen/generator_test.go` — table-driven: (1) 单 overload Hook 生成完整脚本，(2) 多 Hook 混合 (overload+override+native) Combined 结构验证，(3) 空 hooks → 错误，(4) Generate() 输出合法 JS (含 `Java.perform`)
+- [x] T023 [US4] 在 `pkg/codegen/generator_test.go` 追加 pure-native Hook 测试 — 验证跳过 Java.perform()
 
 **Checkpoint**: 生成器完整可用 — HookSpec → 合法 Frida JS 脚本
 
