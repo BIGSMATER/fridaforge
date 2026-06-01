@@ -13,6 +13,10 @@
 - Q: 内嵌模板文件（.tmpl）存在语法错误时，Generator 创建应如何行为？ → A: NewGenerator() 返回 error，fail-fast（模板是二进制内嵌的，编译错误 = 代码 bug）。
 - Q: method_signature 含泛型（如 `java.util.List<java.lang.String>, int`），逗号在泛型括号内导致切分歧义，如何处理？ → A: M3 整串原样插入，不分割参数。签名分割逻辑推迟到 M5。
 
+### Session 2026-06-01
+
+- Q: 真机测试发现 Frida 17 移除了全局 `Java` 对象和 `Module.findExportByName(name, sig)` API，生成的脚本无法直接运行。如何处理？ → A: 新增 `--frida-version` CLI flag（默认 16）。Frida 16 模式保持原有 `Java.perform()` 直接生成；Frida 17 模式在 Java hooks 前插入 `frida-compile` 引导注释，Native 模板使用实例方法 `module.findExportByName()`。
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - 从 YAML 规格生成可执行 Frida 脚本 (Priority: P1)

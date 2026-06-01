@@ -107,6 +107,8 @@
 - [x] T024 [US1] 在 `cmd/fridaforge/spec.go` 新增 `specGenerateCmd` cobra 子命令: Use="generate <文件>"，Short="生成 Frida JS Hook 脚本"，Args=cobra.ExactArgs(1)，RunE 实现: LoadSpec → Validate → NewGenerator → Generate → 输出
 - [x] T025 [US1] 在 `cmd/fridaforge/spec.go` 添加 `-o, --output` flag (string) 和 `-t, --target` flag (string) — -o 控制文件输出 vs stdout，-t 按 `className.methodName` 精确匹配过滤 (不含 signature)
 - [x] T026 [US1] 在 `cmd/fridaforge/spec.go` 的 RunE 中实现 `-o` 输出逻辑: 指定时 `os.WriteFile`，未指定时 `fmt.Println(Combined)`
+- [x] T026a [US1] 新增 `--frida-version` flag (默认 "16") — 版本 17 时 Java 模板插入 `frida-compile` 引导注释 (Session 2026-06-01 clarify)
+- [x] T026b [US4] 更新 `native.js.tmpl` 使用 `nativeModule.findExportByName()` 实例方法 — Frida 17 移除了全局 `Module.findExportByName()` (Session 2026-06-01 clarify)
 
 **Checkpoint**: CLI `fridaforge spec generate` 端到端可用
 
