@@ -14,9 +14,10 @@
 func NewGenerator(logger *slog.Logger) (*Generator, error)
 
 // Generate 从 HookSpec 生成完整的 Frida JavaScript 脚本。
+// fridaVersion 为目标 Frida 版本 ("16" 或 "17")，模板据此选择 API 策略。
 // 返回 *GenerateOutput，包含组合后的完整脚本和各 Hook 独立代码段。
 // spec 为 nil 或 hooks 为空时返回 *GenerateError。
-func (g *Generator) Generate(spec *spec.HookSpec) (*GenerateOutput, error)
+func (g *Generator) Generate(spec *spec.HookSpec, fridaVersion string) (*GenerateOutput, error)
 ```
 
 ### 类型: `GenerateOutput`
@@ -49,6 +50,7 @@ type RenderContext struct {
     HookType        string // "overload" / "override" / "native"
     MethodSignature string // 参数签名整串 (空→无签名)
     ModuleName      string // Native .so 模块名
+    FridaVersion    string // 目标 Frida 版本 ("16" 或 "17")
 }
 ```
 
@@ -120,7 +122,7 @@ func main() {
 |----------|----------|-----------------|
 | `overload.js.tmpl` | overload | `Java.use().class.method.overload(sig).implementation` + `this.method()` 原调用 |
 | `override.js.tmpl` | override | `Java.use().class.method.overload(sig).implementation` (无原调用) |
-| `native.js.tmpl` | native | `Process.findModuleByName()` + `Module.findExportByName()` + `Interceptor.attach()` |
+| `native.js.tmpl` | native | `Process.findModuleByName()` + `module.findExportByName()` + `Interceptor.attach()` |
 
 所有 Java 模板产生单段代码（不含 `Java.perform()` wrapper）——`Generate()` 负责组装 wrapper。
 

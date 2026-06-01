@@ -9,6 +9,7 @@ import (
 
 	"github.com/bigsmater/fridaforge/pkg/codegen"
 	"github.com/bigsmater/fridaforge/pkg/config"
+	"github.com/bigsmater/fridaforge/pkg/spec"
 )
 
 func init() {
@@ -97,17 +98,26 @@ func runSpecGenerate(cmd *cobra.Command, args []string) error {
 	// 输出 Combined 脚本
 	if generateTarget != "" {
 		var filtered strings.Builder
+		hasJava := false
 		for _, script := range out.Scripts {
 			targetKey := script.HookTarget.ClassName + "." + script.HookTarget.MethodName
 			if targetKey == generateTarget {
 				filtered.WriteString(script.JSCode)
 				filtered.WriteString("\n")
+				if script.HookTarget.HookType != spec.HookTypeNative {
+					hasJava = true
+				}
 			}
 		}
 		if filtered.Len() == 0 {
 			return fmt.Errorf("未找到匹配的 Hook: %s", generateTarget)
 		}
-		out.Combined = filtered.String()
+		if hasJava {
+			combined := "Java.perform(function() {\n" + filtered.String() + "});\n"
+			out.Combined = combined
+		} else {
+			out.Combined = filtered.String()
+		}
 	}
 
 	if generateOutput != "" {

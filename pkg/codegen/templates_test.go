@@ -105,7 +105,7 @@ func TestRenderTemplate(t *testing.T) {
 			contains: []string{
 				"Process.findModuleByName",
 				"libc.so",
-				"Module.findExportByName",
+				"findExportByName",
 				"Interceptor.attach",
 				"onEnter",
 				"onLeave",
