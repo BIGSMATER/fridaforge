@@ -263,6 +263,7 @@
         <li><a href="#ai-template">模板即契约</a></li>
         <li><a href="#ai-speckit">M3 在 SpecKit 全流程中</a></li>
         <li><a href="#ai-breaking">Semantic Versioning &amp; Breaking Change</a></li>
+        <li><a href="#ai-midstream">SpecKit 中途新需求的标准流程</a></li>
       </ol>
     </li>
   </ol>
@@ -840,6 +841,63 @@ tasks.md         &rarr; 定义 ORDER（逐步实现）</code></pre>
   <p><strong>Breaking Change：</strong> <code>HookTypeReplace = "replace"</code> &rarr; <code>HookTypeOverride = "override"</code></p>
   <p>测试文件中的 YAML 夹具从 <code>hook_type: replace</code> 改为 <code>hook_type: override</code>，常量从 <code>HookTypeReplace</code> 改为 <code>HookTypeOverride</code>。</p>
   <p>不留别名，不搞 "deprecated 过渡期" — <code>0.x.y</code> 阶段的特权。</p>
+</aside>
+
+<!-- 3.5 -->
+<h3 id="ai-midstream">3.5 SpecKit 中途新需求的标准流程</h3>
+
+<p>M3 实现到 Phase 6 时，真机集成测试暴露了 Frida 17 API 不兼容的问题。这属于<strong>中途新需求</strong>——原始 spec 没有覆盖。</p>
+
+<p><strong>错误做法（M3 初期踩的坑）：</strong></p>
+
+<pre><code>发现 Frida 17 问题 &rarr; 直接改模板 + 加 --frida-version flag &rarr; commit
+                      ↑
+                 spec/tasks 文档开始跟代码不一致</code></pre>
+
+<p><strong>正确做法（SpecKit 标准流程）：</strong></p>
+
+<ol>
+  <li><strong>回 spec.md</strong>：在 Clarisifications 下新增 Session 记录需求来源 + 决策</li>
+  <li><strong>回 tasks.md</strong>：追加新 Task（编号如 T026a, T026b）</li>
+  <li><strong>回 contracts/</strong>：更新 API 契约（如 Generate() 签名变更）</li>
+  <li><strong>写代码</strong>实现</li>
+  <li><strong>/speckit.analyze</strong> 复查 spec/tasks/code 一致性</li>
+</ol>
+
+<aside class="note">
+  <p><strong>核心原则</strong>：spec/plan/tasks 三文档永远是代码的精确描述。代码可以超前文档几十分钟（先写代码再补 doc），但不能跨 commit 不一致。最终提交时三者必须同步。</p>
+</aside>
+
+<h4>三种中途变更的处理矩阵</h4>
+
+<table>
+  <thead>
+    <tr><th>类型</th><th>示例</th><th>更新 spec</th><th>更新 tasks</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>🔴 新功能</td>
+      <td><code>--frida-version</code> flag</td>
+      <td>✅ 加 Clarification</td>
+      <td>✅ 追加 Task</td>
+    </tr>
+    <tr>
+      <td>🟡 Bug 修复</td>
+      <td>override 模板调用了 <code>this.method()</code></td>
+      <td>❌</td>
+      <td>✅ 标记完成</td>
+    </tr>
+    <tr>
+      <td>🟢 设计微调</td>
+      <td>模板缩进、注释格式</td>
+      <td>❌</td>
+      <td>❌</td>
+    </tr>
+  </tbody>
+</table>
+
+<aside class="tip">
+  <p><strong>一句话总结</strong>：有功能变更就更新 spec + tasks，有 bug 直接修，有架构变更才改 plan。三文档跟代码必须永远是同一张"地图"。</p>
 </aside>
 
 </body>

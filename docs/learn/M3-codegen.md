@@ -669,3 +669,44 @@ validator 接受 replace            validator 不再接受 replace
 **实践中怎么处理？** 测试文件中的 YAML 夹具从 `hook_type: replace` 改为 `hook_type: override`。`spec/types_test.go` 中的常量测试从 `HookTypeReplace` 改为 `HookTypeOverride`。
 
 在 SpecKit 工作流中，这种 Breaking Change 必须在 **specify 阶段**就声明（FR-015），在 **clarify 阶段**确认策略（硬 Breaking），在 **implement 阶段**干净利落地执行——不留别名，不搞"deprecated 过渡期"，因为项目还没有外部用户。这是 `0.x.y` 阶段的特权。
+
+### 3.5 SpecKit 中途新需求的标准流程
+
+M3 实现到 Phase 6 时，真机集成测试暴露了 Frida 17 API 不兼容的问题。这属于**中途新需求**——原始 spec 没有覆盖。
+
+**错误做法**（M3 初期踩的坑）：
+```
+发现 Frida 17 问题 → 直接改模板 + 加 --frida-version flag → commit
+                        ↑
+                   spec/tasks 文档开始跟代码不一致
+```
+
+**正确做法**（SpecKit 标准流程）：
+```
+发现新需求
+  │
+  ├─ ① 回 spec.md Clarisifications：记录需求来源 + 决策
+  │      Session 2026-06-01:
+  │      Q: Frida 17 移除了 Java 全局，如何处理？
+  │      A: 新增 --frida-version flag...
+  │
+  ├─ ② 回 tasks.md 追加新 Task（编号如 T026a, T026b）
+  │
+  ├─ ③ 回 contracts/ 更新 API 契约（如 Generate() 签名变更）
+  │
+  ├─ ④ 写代码实现
+  │
+  └─ ⑤ /speckit.analyze 复查 spec/tasks/code 一致性
+```
+
+**核心原则**：spec/plan/tasks 三文档永远是代码的精确描述。代码可以超前文档几十分钟（先写代码再补 doc），但不能跨 commit 不一致。最终提交时三者必须同步。
+
+**三种中途变更的处理矩阵**：
+
+| 类型 | 示例 | 是否更新 spec | 是否更新 tasks |
+|------|------|:---:|:---:|
+| 🔴 新功能 | `--frida-version` flag | ✅ 加 Clarification | ✅ 追加 Task |
+| 🟡 Bug 修复 | override 模板调用了 `this.method()` | ❌ | ✅ 标记完成状态 |
+| 🟢 设计微调 | 模板缩进、注释格式 | ❌ | ❌ |
+
+**一句话总结**：有功能变更就更新 spec + tasks，有 bug 直接修，有架构变更才改 plan。三文档跟代码必须永远是同一张"地图"。
