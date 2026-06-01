@@ -37,3 +37,13 @@ func (e *GenerateError) Error() string {
 func (e *GenerateError) Unwrap() error {
 	return e.Err
 }
+
+// NewTemplateError 创建模板层错误。
+func NewTemplateError(op, name string, err error) *TemplateError {
+	return &TemplateError{Op: op, Name: name, Err: err}
+}
+
+// NewGenerateError 创建生成层错误。
+func NewGenerateError(op string, err error) *GenerateError {
+	return &GenerateError{Op: op, Err: err}
+}

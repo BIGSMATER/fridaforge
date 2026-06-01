@@ -72,7 +72,7 @@ hooks:
 hooks:
   - class_name: com.example.Foo
     method_name: bar
-    hook_type: replace
+    hook_type: override
 `
 		path := filepath.Join(tmpDir, "single.yaml")
 		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
