@@ -44,7 +44,7 @@ func TestGenerateIntegration(t *testing.T) {
 		},
 	}
 
-	out, err := gen.Generate(s)
+	out, err := gen.Generate(s, "")
 	if err != nil {
 		t.Fatalf("Generate() 失败: %v", err)
 	}

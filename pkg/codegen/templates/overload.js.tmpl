@@ -1,4 +1,8 @@
-    var TargetClass = Java.use("{{.ClassName}}");
+{{if eq .FridaVersion "17"}}// 此脚本使用 Java bridge，需先通过 frida-compile 编译：
+//   npm install -g frida-compile
+//   frida-compile script.js -o compiled.js
+//   frida -U -f com.app -l compiled.js
+{{end}}    var TargetClass = Java.use("{{.ClassName}}");
 {{if .MethodSignature}}
     TargetClass.{{.MethodName}}.overload('{{.MethodSignature}}').implementation = function() {
 {{else}}

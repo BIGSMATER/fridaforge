@@ -127,7 +127,7 @@ func TestGenerate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			out, err := g.Generate(&tt.spec)
+			out, err := g.Generate(&tt.spec, "")
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Generate() error = %v, wantErr = %v", err, tt.wantErr)
 			}
@@ -158,7 +158,7 @@ func TestGenerate(t *testing.T) {
 	}
 
 	t.Run("nil spec returns error", func(t *testing.T) {
-		_, err := g.Generate(nil)
+		_, err := g.Generate(nil, "")
 		if err == nil {
 			t.Error("Generate(nil) should return error")
 		}
@@ -168,7 +168,7 @@ func TestGenerate(t *testing.T) {
 		_, err := g.Generate(&spec.HookSpec{
 			AppPackage: "com.example.app",
 			Hooks:      []spec.HookTarget{},
-		})
+		}, "")
 		if err == nil {
 			t.Error("Generate() with empty Hooks should return error")
 		}
@@ -182,7 +182,7 @@ func TestGenerate(t *testing.T) {
 				{ClassName: "com.example.B", MethodName: "b", HookType: spec.HookTypeOverride},
 				{MethodName: "c", HookType: spec.HookTypeNative, ModuleName: "libx.so"},
 			},
-		})
+		}, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -208,7 +208,7 @@ func TestGenerate(t *testing.T) {
 		out, err := g.Generate(&spec.HookSpec{
 			AppPackage: "com.example.app",
 			Hooks:      hooks,
-		})
+		}, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

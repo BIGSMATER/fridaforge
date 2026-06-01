@@ -29,4 +29,5 @@ type RenderContext struct {
 	HookType        string // "overload" / "override" / "native"
 	MethodSignature string // 参数签名整串（空 → 无签名匹配）
 	ModuleName      string // .so 模块名（仅 Native hooks）
+	FridaVersion    string // 目标 Frida 版本 ("16" 或 "17")，模板据此选择 API
 }

@@ -40,8 +40,9 @@ var specGenerateCmd = &cobra.Command{
 }
 
 var (
-	generateOutput string
-	generateTarget string
+	generateOutput     string
+	generateTarget     string
+	generateFridaVer   string
 )
 
 func init() {
@@ -49,6 +50,8 @@ func init() {
 		"输出文件路径 (默认: stdout)")
 	specGenerateCmd.Flags().StringVarP(&generateTarget, "target", "t", "",
 		"仅生成指定 className.methodName 的 Hook (精确匹配)")
+	specGenerateCmd.Flags().StringVar(&generateFridaVer, "frida-version", "16",
+		"目标 Frida 版本 (16 或 17，默认 16)")
 }
 
 func runSpecValidate(cmd *cobra.Command, args []string) error {
@@ -86,7 +89,7 @@ func runSpecGenerate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("初始化代码生成器失败: %w", err)
 	}
 
-	out, err := gen.Generate(s)
+	out, err := gen.Generate(s, generateFridaVer)
 	if err != nil {
 		return fmt.Errorf("生成脚本失败: %w", err)
 	}
