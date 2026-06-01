@@ -76,7 +76,7 @@
 |------|------|
 | **Go 知识** | `net/http.Server`、`encoding/json` 自定义序列化、middleware 链模式、`log/slog` 结构化日志 |
 | **AI 范式** | MCP 协议（JSON-RPC 2.0 + Streamable HTTP）、Tool/Resource/Prompt 设计哲学、LLM 如何通过 MCP 调用工具 |
-| **Harness** | Claude Desktop 连接 MCP Server，让大模型自动生成 Hook 脚本 |
+| **Harness** | opencode 本地 MCP 连接 FridaForge MCP Server，让大模型自动生成 Hook 脚本 |
 
 ---
 
