@@ -49,7 +49,24 @@
 | **逆向知识** | Frida JS API 深度：`Java.perform()`, `Java.use()`, `.implementation =`, `this.xxx()` 原方法调用；Hook 类型模板化 (Override/Overload/Native) |
 | **Harness** | 扩展 M2 的测试 App（加 Native 函数），验证生成脚本正确性 |
 | **产出物** | `pkg/codegen/` 7 个源文件 (generator.go, templates.go, types.go, errors.go + 4 test + 1 integration test); `pkg/spec/types.go` 新增 native/override + 2 字段; `pkg/config/validator.go` 升级校验; `cmd/fridaforge/spec.go` 新增 generate 子命令; 3 个模板文件 (.js.tmpl); 教学文档 .md + .html; 30 tests; 覆盖率 97% |
-| **已提交** | commit `0d6257a` |
+| **已提交** | commit `260489c` — 最终 analyze 修复完成 |
+| **经验教训** | 见下方 ↓ |
+
+**M3 经验教训：**
+
+1. **HTML 教学文档效果优于纯 Markdown** — `<details>` 折叠、`<aside>` 标注框、`<dl>` 定义列表等语义元素在大纲式学习中优势明显。宪法 §6.2 已正式确立两者同等地位。
+
+2. **学习文档应按知识点组织，非按 Phase** — 最初的教学文档以 "Phase 2 知识点" 为标题，学员反馈后重构为以知识点为主的平铺结构。Phase 是实现里程碑，知识点是认知单元——二者不应混淆。
+
+3. **代码注释语种须与项目一致** — codegen 包最初用了英文注释，但项目既有代码全为中文。跨文件维护两种语言注释增加认知成本，统一为中文。
+
+4. **模板正确性不可仅靠单元测试** — `override.js.tmpl` 当初与 `overload.js.tmpl` 行为完全相同（都调用了 `this.method()`），但单元测试只检查子串存在性（"hooked (override)"），未检查语义正确性。bug 在 `/speckit.analyze` 交叉验证阶段才暴露。
+
+5. **SpecKit 中途新需求必须先更新 spec + tasks** — 实现阶段发现 Frida 17 API 不兼容，直接写了 `--frida-version` 功能但没有先更新 spec/tasks，导致文档与代码暂时不一致。正确流程：clarify → 更新 spec → 追加 tasks → 再写代码。
+
+6. **集成测试须在真机验证** — Frida 17 的 `Java` 全局移除和 `Module.findExportByName` API 变更，在纯单元测试中完全不可见。真机集成测试（SC-002）暴露了这些运行时问题，直接导致了 `--frida-version` 功能的诞生。
+
+7. **`/speckit.implement` 是 Build Mode，`/speckit.analyze` 及之前阶段是 Plan Mode** — 实现阶段可以修改文件（构建代码）；规划和分析阶段只读（输出报告）。Mode 切换有明确边界，避免在"分析"时误改源码。
 
 ---
 

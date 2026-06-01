@@ -1,12 +1,12 @@
 <!-- SPECKIT START -->
 <!--
   HANDOFF CONTEXT — 新会话启动时阅读以下文档即可完全了解项目状态：
-    1. docs/milestones.md          ← 全局 Milestone 计划（当前在 M3 实现中）
+    1. docs/milestones.md          ← 全局 Milestone 计划（当前在 M3 完成）
     2. .specify/memory/constitution.md  ← 编码/安全/工作流宪法
     3. docs/reference/speckit-rationale.md ← SpecKit 为什么这样设计
     4. specs/001-fridaforge-cli/plan.md  ← M1 实施计划（已完成）
     5. specs/002-frida-engine/plan.md    ← M2 实施计划（已完成）
-    6. specs/003-codegen/plan.md         ← M3 实施计划（当前 — 实现中）
+    6. specs/003-codegen/plan.md         ← M3 实施计划（已完成）
 
     项目: FridaForge — 声明式 Frida 脚本工程化平台
     当前: M3 完成 (声明式代码生成器) — Phase 7 打磨完成, 准备进入 M4
@@ -15,6 +15,6 @@
     导师角色: SpecKit 规划阶段先行（瀑布式）→ 实现阶段讲解与编码交替（每 Phase = 独立示例讲解 → 编码 → 补充项目代码示例 → 确认）
     M1 经验: 教学与编码不应割裂——学员在看见具体代码时才会暴露真正的困惑；宪法和实际代码必须两次交叉验证（实现前+实现后）；同文件 Task 应合并 Commit
     M2 经验: 即讲即写模式对并发概念尤其有效 (context/channel/锁均是当场提问当场讲)；CGO 依赖需隔离 (devkit 不污染 M1 包)；WaitGroup Add/Done 配对必须严格；Phase 教学文档更新不应等学员提醒
-    M3 经验: HTML 教学文档效果优于纯 Markdown（<details> 折叠、<aside> 标注框、<dl> 定义列表）；宪法 §6.2 已确立 .html 与 .md 教学文档同等地位
+    M3 经验: HTML 与 .md 教学文档同等地位（宪法 §6.2 已确立）；学习文档应按知识点组织、非按 Phase；代码注释语种须与项目一致；模板正确性不可仅靠单元测试检验（override 模板 bug 在 analyze 阶段才暴露）；SpecKit 中途新需求必须先更新 spec+tasks 再写代码；集成测试须在真机验证（Frida 17 API 变更通过真机测试暴露）；`/speckit.implement` 使用 Build Mode，`/speckit.analyze` 及之前阶段为 Plan Mode
 -->
 <!-- SPECKIT END -->
