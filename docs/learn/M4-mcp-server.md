@@ -103,6 +103,99 @@ cmd/fridaforge/mcp.go —— 调用者负责创建依赖
 
 Server 收到的都是 interface，不知道也不关心这些 interface 背后是真实 Frida 还是 YAML 文件。
 
+### 1.4 项目实际代码示例 (Phase 2)
+
+**types.go — MCP I/O 类型定义**
+
+依赖注入反过来要求定义清晰的数据契约。M4 通过带 `jsonschema` tag 的 struct 同时完成三个职责：Go 内部类型、JSON 序列化、JSON Schema 生成。
+
+```go
+// pkg/mcpserver/types.go
+
+// GenerateInput — spec_generate Tool 的输入参数
+type GenerateInput struct {
+    AppPackage string `json:"app_package" jsonschema:"目标应用包名,required"`
+    ClassName  string `json:"class_name" jsonschema:"目标类全限定名,required"`
+    MethodName string `json:"method_name" jsonschema:"目标方法名,required"`
+    HookType   string `json:"hook_type" jsonschema:"Hook 类型: overload/override/native,required"`
+    Signature  string `json:"signature,omitempty" jsonschema:"方法参数签名，仅 overload 时可选"`
+    ModuleName string `json:"module_name,omitempty" jsonschema:"原生 .so 模块名，仅 native 时必填"`
+}
+
+// ValidateOutput — spec_validate Tool 的输出（comprehensive 错误模式）
+type ValidateOutput struct {
+    Valid    bool                   `json:"valid" jsonschema:"校验是否通过"`
+    Errors   []ValidationFieldError `json:"errors" jsonschema:"字段校验错误列表"`
+    Warnings []ValidationFieldError `json:"warnings" jsonschema:"警告信息列表"`
+}
+
+// ProcessLister — 设备进程枚举接口（M4 新定义的 abstraction）
+type ProcessLister interface {
+    ListProcesses(ctx context.Context, deviceID string) ([]ProcessListItem, error)
+}
+```
+
+**注意 `omitempty` tag**：`signature` 和 `module_name` 标记为 `omitempty`，当字段为零值时不序列化到 JSON。这保证了 spec_validate Tool 的 inputSchema 不会要求用户填写可选字段。
+
+**mock_store.go — YAML 配置 + 接口注入**
+
+M4 的模拟数据通过 YAML 文件加载，体现了 `os.UserHomeDir()` + 默认回退的渐进增强模式：
+
+```go
+// pkg/mcpserver/mock_store.go
+
+func LoadMockStore() (*MockStore, error) {
+    cfg := defaultMockConfig()                           // 内嵌默认值
+
+    data, err := os.ReadFile(mockConfigPath())           // 尝试读取 ~/.fridaforge/mock_devices.yaml
+    if err == nil {
+        if unmarshalErr := yaml.Unmarshal(data, &cfg); unmarshalErr != nil {
+            return nil, fmt.Errorf("解析 mock 配置文件失败: %w", unmarshalErr)
+        }
+    }
+
+    // 组装注入对象
+    return &MockStore{
+        DeviceLister:  &mockDeviceLister{devices: devices},
+        ProcessLister: &StubProcessLister{processesByDevice: procMap},
+    }, nil
+}
+```
+
+`%w` 错误包装保留原始错误链，调用方可以通过 `errors.Unwrap()` 获取底层错误。
+
+**server.go — go-sdk Tool 注册**
+
+go-sdk 的 `mcp.AddTool` 是泛型函数，从 struct tag 自动推断 JSON Schema：
+
+```go
+// pkg/mcpserver/server.go
+
+func registerTools(server *mcp.Server, logger *slog.Logger) {
+    mcp.AddTool(server, &mcp.Tool{
+        Name:        "spec_generate",
+        Description: "根据 Hook 参数生成完整的 Frida JavaScript 脚本",
+    }, generateHandler)  // ← 泛型推断：输入 GenerateInput，输出 GenerateOutput
+
+    mcp.AddTool(server, &mcp.Tool{
+        Name:        "spec_validate",
+        Description: "校验 Hook 参数是否合法，返回所有字段级错误和警告信息",
+    }, validateHandler)
+
+    mcp.AddTool(server, &mcp.Tool{
+        Name:        "device_list",
+        Description: "枚举当前连接的调试设备列表",
+    }, deviceListHandler)
+
+    mcp.AddTool(server, &mcp.Tool{
+        Name:        "process_list",
+        Description: "枚举指定设备上运行的进程列表",
+    }, processListHandler)
+}
+```
+
+`ServerOptions.Logger` 注入 slog 实例，go-sdk 内部使用它记录协议级别的日志（如连接建立、Tool 调用、错误）——区分于应用层日志。
+
 ---
 
 ## 二、逆向/底层轨道
@@ -173,4 +266,4 @@ LLM 通过 Tool 的三个属性来理解如何调用：
 
 ---
 
-> 状态: 初始版 — 实现阶段将补充项目实际代码示例
+> 状态: Phase 2 完成 — 已补充 §1.4 项目实际代码示例（types.go、mock_store.go、server.go）。Phase 3 将补充 tools_spec.go 的 handler 代码。
