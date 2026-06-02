@@ -5,7 +5,9 @@ package mcpserver
 
 import (
 	"context"
+	"log/slog"
 
+	"github.com/bigsmater/fridaforge/pkg/codegen"
 	"github.com/bigsmater/fridaforge/pkg/device"
 )
 
@@ -98,7 +100,8 @@ func (s *StubProcessLister) ListProcesses(ctx context.Context, deviceID string) 
 
 // Server 是 MCP Server 的核心结构体，持有所有依赖
 type Server struct {
+	generator     *codegen.Generator
 	deviceLister  device.DeviceLister
 	processLister ProcessLister
-	// codegen generator 在 server.go 中通过 NewMCPServer 传入
+	logger        *slog.Logger
 }
