@@ -60,6 +60,16 @@
 
 <p>tag 写在反引号内，key:value 用空格或逗号分隔。<code>json:"app_package"</code> 控制 JSON 字段名，<code>jsonschema:"描述,required"</code> 让 SDK 生成 JSON Schema 的 description 和 required。</p>
 
+<pre><code>// pkg/mcpserver/types.go —— 项目实际代码中的完整双-tag 结构
+type GenerateInput struct {
+    AppPackage string `json:"app_package" jsonschema:"目标应用包名,required"`
+    ClassName  string `json:"class_name" jsonschema:"目标类全限定名,required"`
+    Signature  string `json:"signature,omitempty" jsonschema:"方法参数签名，仅 overload 时可选"`
+    ModuleName string `json:"module_name,omitempty" jsonschema:"原生 .so 模块名，仅 native 时必填"`
+}</code></pre>
+
+<aside><strong>omitempty tag</strong>：标记此 tag 的字段为零值时不会序列化到 JSON，保证 Tool 的 inputSchema 不会要求用户填写可选字段——JSON Schema 的 required 列表仅含非 omitempty 字段。</aside>
+
 <h3>1.2 log/slog 结构化日志</h3>
 
 <p>Go 1.21 引入的 <code>slog</code> 替代传统的 <code>log</code> 包，支持键值对结构化输出：</p>
@@ -134,66 +144,25 @@ func (s *StubDeviceLister) ListDevices(ctx context.Context) ([]device.Device, er
 <p>Server 收到的都是 interface，不知道也不关心这些 interface 背后是真实 Frida 还是 YAML 文件。</p>
 </details>
 
-<h3>1.4 项目实际代码示例 (Phase 2)</h3>
+<h3>1.4 go-sdk Tool 注册与泛型 API</h3>
 
-<p><strong>types.go — MCP I/O 类型定义</strong></p>
+<p>go-sdk 的 <code>mcp.AddTool</code> 是泛型函数，从 handler 函数签名自动推断输入/输出类型，再通过 struct tag 生成 JSON Schema：</p>
 
-<p>依赖注入反过来要求定义清晰的数据契约。M4 通过带 <code>jsonschema</code> tag 的 struct 同时完成三个职责：Go 内部类型、JSON 序列化、JSON Schema 生成。</p>
+<pre><code>// pkg/mcpserver/server.go —— 项目实际代码
 
-<pre><code>// pkg/mcpserver/types.go
-
-// GenerateInput — spec_generate Tool 的输入参数
-type GenerateInput struct {
-    AppPackage string `json:"app_package" jsonschema:"目标应用包名,required"`
-    ClassName  string `json:"class_name" jsonschema:"目标类全限定名,required"`
-    MethodName string `json:"method_name" jsonschema:"目标方法名,required"`
-    HookType   string `json:"hook_type" jsonschema:"Hook 类型: overload/override/native,required"`
-    Signature  string `json:"signature,omitempty" jsonschema:"方法参数签名，仅 overload 时可选"`
-    ModuleName string `json:"module_name,omitempty" jsonschema:"原生 .so 模块名，仅 native 时必填"`
-}
-
-// ValidateOutput — spec_validate Tool 的输出（comprehensive 错误模式）
-type ValidateOutput struct {
-    Valid    bool                   `json:"valid"`
-    Errors   []ValidationFieldError `json:"errors"`
-    Warnings []ValidationFieldError `json:"warnings"`
-}</code></pre>
-
-<aside>注意 <code>omitempty</code> tag：当字段为零值时不序列化到 JSON，保证了 Tool 的 inputSchema 不会要求用户填写可选字段。</aside>
-
-<p><strong>mock_store.go — YAML 配置 + 接口注入</strong></p>
-
-<p>M4 的模拟数据通过 YAML 文件加载，体现了 <code>os.UserHomeDir()</code> + 默认回退的渐进增强模式：</p>
-
-<pre><code>func LoadMockStore() (*MockStore, error) {
-    cfg := defaultMockConfig()                           // 内嵌默认值
-
-    data, err := os.ReadFile(mockConfigPath())           // 尝试读取 YAML
-    if err == nil {
-        if unmarshalErr := yaml.Unmarshal(data, &cfg); unmarshalErr != nil {
-            return nil, fmt.Errorf("解析 mock 配置文件失败: %w", unmarshalErr)
-        }
-    }
-    // 组装注入对象...
-}</code></pre>
-
-<p><code>%w</code> 错误包装保留原始错误链，调用方可以通过 <code>errors.Unwrap()</code> 获取底层错误。</p>
-
-<p><strong>server.go — go-sdk Tool 注册</strong></p>
-
-<p>go-sdk 的 <code>mcp.AddTool</code> 是泛型函数，从 struct tag 自动推断 JSON Schema：</p>
-
-<pre><code>func registerTools(server *mcp.Server, logger *slog.Logger) {
+func registerTools(server *mcp.Server, logger *slog.Logger) {
     mcp.AddTool(server, &mcp.Tool{
         Name:        "spec_generate",
         Description: "根据 Hook 参数生成完整的 Frida JavaScript 脚本",
-    }, generateHandler)  // ← 泛型推断：输入 GenerateInput，输出 GenerateOutput
+    }, generateHandler)  // ← 泛型推断：In=GenerateInput, Out=GenerateOutput
+
     mcp.AddTool(server, &mcp.Tool{
         Name:        "spec_validate",
         Description: "校验 Hook 参数是否合法",
     }, validateHandler)
-    // ... device_list, process_list
 }</code></pre>
+
+<p><code>AddTool[In, Out any]</code> 的泛型约束：handler 必须符合 <code>func(ctx, *CallToolRequest, In) (*CallToolResult, Out, error)</code> 签名。编译期就能捕获类型不匹配。</p>
 
 <h2 id="reverse">二、逆向/底层轨道</h2>
 
