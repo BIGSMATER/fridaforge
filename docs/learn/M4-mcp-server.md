@@ -105,18 +105,107 @@ Server 收到的都是 interface，不知道也不关心这些 interface 背后�
 
 **注意 `omitempty` tag**：标记此 tag 的字段为零值时不会序列化到 JSON，保证 Tool 的 inputSchema 不会要求用户填写可选字段——JSON Schema 的 `required` 列表仅含非 omitempty 字段。
 
-### 1.4 go-sdk Tool 注册与泛型 API
+### 1.4 go-sdk Tool 注册：泛型 + 反射协同模式
 
-go-sdk 的 `mcp.AddTool` 是泛型函数，从 handler 函数签名自动推断输入/输出类型，再通过 struct tag 生成 JSON Schema：
+go-sdk 的 `mcp.AddTool` 同时使用了 Go 的两个高级特性：泛型（编译期类型安全）+ 反射（运行时自动生成 JSON Schema）。两者配合让 Tool 注册只需写 struct + handler，其余自动完成。
+
+**泛型基础——同逻辑、不同类型，不复制代码**
 
 ```go
-// pkg/mcpserver/server.go —— 项目实际代码
+// ❌ 每个类型写一遍
+func AddInt(a, b int) int           { return a + b }
+func AddFloat(a, b float64) float64 { return a + b }
+
+// ✅ 泛型写一次，类型参数化
+func Add[T int | float64](a, b T) T { return a + b }
+x := Add(1, 2)       // T 推断为 int
+y := Add(1.5, 2.3)   // T 推断为 float64
+```
+
+`[T int | float64]` 叫类型参数列表。`T` 是占位符，`int | float64` 是类型约束——编译器只允许这两种类型。
+
+**`AddTool[In, Out any]`——两个类型参数，编译期验证签名**
+
+```go
+// go-sdk 声明
+func AddTool[In, Out any](s *Server, t *Tool, h func(ctx, *Request, In) (*Result, Out, error))
+//                                                  │                 │
+//                              handler 的第三个参数必须是 In ───────┘                 │
+//                              handler 的返回必须是 Out ──────────────────────────────┘
+
+// 调用时——编译器自动推断 In 和 Out：
+mcp.AddTool(server, &mcp.Tool{...}, generateHandler)
+//  generateHandler 签名: func(ctx, *Request, GenerateInput) (*Result, GenerateOutput, error)
+//                                         ^^^^^^^^^^^^                      ^^^^^^^^^^^^^^
+//  ⇒ 编译器推断 In = GenerateInput, Out = GenerateOutput
+
+// ❌ 类型不匹配 → 编译错误，不会留到运行时
+mcp.AddTool(server, tool, func(ctx, req, string) (...) {...}) // In 推断为 GenerateInput ≠ string
+```
+
+泛型把类型错误从**运行时 panic**提前到**编译期报错**。
+
+**反射基础——运行时读取任意类型的结构**
+
+go-sdk 在编译时不知道你定义了什么 struct，但需要在运行时自动生成 JSON Schema。反射就是"程序照镜子看自己"的能力：
+
+```go
+func inspectStruct(v any) {
+    t := reflect.TypeOf(v)        // 拿"身份证"——类型描述符
+    for i := 0; i < t.NumField(); i++ {
+        field := t.Field(i)
+        field.Name                 // → "AppPackage"
+        field.Type.String()        // → "string"
+        field.Tag.Get("json")      // → "app_package"
+        field.Tag.Get("jsonschema") // → "目标应用包名,required"
+    }
+}
+```
+
+`reflect.TypeOf()` 返回一个 `reflect.Type`，通过它可以遍历字段、读取名称、类型、tag——完全不知道具体 struct 是什么也能做到。
+
+**泛型 + 反射的协作流程**
+
+go-sdk 内部做的事情（简化版）：
+
+```go
+func AddTool[In, Out any](s *Server, t *Tool, h ToolHandlerFor[In, Out]) {
+    // ──── 编译期 ────
+    // 泛型保证 In 和 handler 第三个参数类型一致（编译通过 = 类型安全）
+
+    // ──── 运行时 ────
+    var in In                                 // In 是 GenerateInput（泛型已推断）
+    tType := reflect.TypeOf(in)               // 反射拿身份证 → 知道有几个字段
+    schema := map[string]any{"type": "object"}
+    
+    for i := 0; i < tType.NumField(); i++ {   // 遍历字段
+        f := tType.Field(i)
+        jsonName := f.Tag.Get("json")         // "app_package"
+        desc := parseJSDescription(f.Tag.Get("jsonschema"))  // "目标应用包名", required
+        schema["properties"][jsonName] = map[string]any{
+            "type": goTypeToJSON(f.Type),     // string → "string"
+            "description": desc,
+        }
+    }
+
+    // 注册到 server，附上生成的 schema
+    s.tools[t.Name] = &registeredTool{tool: t, schema: schema, handler: wrap(h)}
+}
+```
+
+**分工**：泛型管编译期——签名校验、类型安全；反射管运行时——生成 JSON Schema、JSON 反序列化参数。两者配合让注册一个 Tool 只需要写 struct + handler，三行代码。
+
+**项目实际代码——registerTools 中的调用**
+
+```go
+// pkg/mcpserver/server.go
 
 func registerTools(server *mcp.Server, logger *slog.Logger) {
     mcp.AddTool(server, &mcp.Tool{
         Name:        "spec_generate",
         Description: "根据 Hook 参数生成完整的 Frida JavaScript 脚本",
-    }, generateHandler)  // ← 泛型推断：从 generateHandler 签名得知 In=GenerateInput, Out=GenerateOutput
+    }, generateHandler)  // 泛型从 handler 签名推断 In=GenerateInput, Out=GenerateOutput
+                         // 反射从 GenerateInput 的 tag 自动生成 JSON Schema
 
     mcp.AddTool(server, &mcp.Tool{
         Name:        "spec_validate",
@@ -124,8 +213,6 @@ func registerTools(server *mcp.Server, logger *slog.Logger) {
     }, validateHandler)
 }
 ```
-
-`AddTool[In, Out any]` 的泛型约束：handler 必须符合 `func(ctx, *CallToolRequest, In) (*CallToolResult, Out, error)` 签名。编译期就能捕获类型不匹配，而不是运行时才发现。`ServerOptions.Logger` 注入 slog 实例，go-sdk 内部用它记录协议级日志——区分于应用层日志。
 
 ---
 
@@ -197,4 +284,4 @@ LLM 通过 Tool 的三个属性来理解如何调用：
 
 ---
 
-> 状态: Phase 2 完成 — §1.1 补充 omitempty 示例，§1.4 新增 go-sdk 泛型 Tool 注册。Phase 3 将补充 tools_spec.go 对接 codegen/config 的 handler 实现。
+> 状态: Phase 2 完成 — §1.4 重构为"泛型 + 反射协同模式"（编译期签名校验 + 运行时 JSON Schema 生成）。Phase 3 将补充 tools_spec.go 对接 codegen/config 的 handler 实现。

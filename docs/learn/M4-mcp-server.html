@@ -144,25 +144,62 @@ func (s *StubDeviceLister) ListDevices(ctx context.Context) ([]device.Device, er
 <p>Server 收到的都是 interface，不知道也不关心这些 interface 背后是真实 Frida 还是 YAML 文件。</p>
 </details>
 
-<h3>1.4 go-sdk Tool 注册与泛型 API</h3>
+<h3>1.4 go-sdk Tool 注册：泛型 + 反射协同模式</h3>
 
-<p>go-sdk 的 <code>mcp.AddTool</code> 是泛型函数，从 handler 函数签名自动推断输入/输出类型，再通过 struct tag 生成 JSON Schema：</p>
+<p>go-sdk 的 <code>mcp.AddTool</code> 同时使用了 Go 的两个高级特性：泛型（编译期类型安全）+ 反射（运行时自动生成 JSON Schema）。两者配合让 Tool 注册只需写 struct + handler。</p>
 
-<pre><code>// pkg/mcpserver/server.go —— 项目实际代码
+<p><strong>泛型基础</strong>——同逻辑、不同类型，不复制代码：</p>
 
-func registerTools(server *mcp.Server, logger *slog.Logger) {
+<pre><code>// ❌ 每个类型写一遍
+func AddInt(a, b int) int           { return a + b }
+func AddFloat(a, b float64) float64 { return a + b }
+
+// ✅ 泛型写一次
+func Add[T int | float64](a, b T) T { return a + b }</code></pre>
+
+<p><code>[T int | float64]</code> 叫类型参数列表。<code>T</code> 是占位符，<code>int | float64</code> 是类型约束。</p>
+
+<p><strong>AddTool[In, Out any]</strong>——两个类型参数，编译期验证签名：</p>
+
+<pre><code>// go-sdk 声明
+func AddTool[In, Out any](s *Server, t *Tool, h func(ctx, ..., In) (..., Out, error))
+
+// 调用——编译器自动推断：
+mcp.AddTool(server, &mcp.Tool{...}, generateHandler)
+//  generateHandler 签名 → In=GenerateInput, Out=GenerateOutput
+
+// ❌ 类型不匹配 → 编译错误，不会留到运行时
+mcp.AddTool(server, tool, func(ctx, req, string) (...) {...}) // In 推断为 GenerateInput ≠ string</code></pre>
+
+<p><strong>反射基础</strong>——运行时读取任意类型的结构，go-sdk 通过它自动生成 JSON Schema：</p>
+
+<pre><code>func inspectStruct(v any) {
+    t := reflect.TypeOf(v)        // 拿身份证
+    for i := 0; i &lt; t.NumField(); i++ {
+        field := t.Field(i)
+        field.Name                 // → "AppPackage"
+        field.Tag.Get("json")      // → "app_package"
+        field.Tag.Get("jsonschema") // → "目标应用包名,required"
+    }
+}</code></pre>
+
+<aside>
+  <strong>分工</strong>：泛型管编译期——签名校验、类型安全；反射管运行时——生成 JSON Schema、JSON 反序列化。两者配合让注册一个 Tool 只需写 struct + handler，三行代码。
+</aside>
+
+<p><strong>项目实际代码</strong>——<code>pkg/mcpserver/server.go</code>：</p>
+
+<pre><code>func registerTools(server *mcp.Server, logger *slog.Logger) {
     mcp.AddTool(server, &mcp.Tool{
-        Name:        "spec_generate",
+        Name: "spec_generate",
         Description: "根据 Hook 参数生成完整的 Frida JavaScript 脚本",
-    }, generateHandler)  // ← 泛型推断：In=GenerateInput, Out=GenerateOutput
+    }, generateHandler)  // 泛型推断 + 反射生成 schema
 
     mcp.AddTool(server, &mcp.Tool{
-        Name:        "spec_validate",
+        Name: "spec_validate",
         Description: "校验 Hook 参数是否合法",
     }, validateHandler)
 }</code></pre>
-
-<p><code>AddTool[In, Out any]</code> 的泛型约束：handler 必须符合 <code>func(ctx, *CallToolRequest, In) (*CallToolResult, Out, error)</code> 签名。编译期就能捕获类型不匹配。</p>
 
 <h2 id="reverse">二、逆向/底层轨道</h2>
 
