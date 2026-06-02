@@ -15,12 +15,20 @@
 
 ---
 
-## Phase 1: 环境搭建
+## Phase 1: 教学准备 + 环境搭建
 
-**目标**: 添加 MCP SDK 依赖，创建 `pkg/mcpserver/` 包目录
+**目标**: 宪法 §6.2 教学文档初始版（三轨并行），添加 MCP SDK 依赖，创建包目录
 
-- [ ] T001 [P] 添加 `github.com/modelcontextprotocol/go-sdk` v1.6.1 到 go.mod（`go get github.com/modelcontextprotocol/go-sdk@v1.6.1`）
-- [ ] T002 [P] 创建 `pkg/mcpserver/` 目录
+**教学步骤**:
+1. 📖 讲 MCP 协议（JSON-RPC 2.0 + stdio Transport + Tool/Resource/Prompt 设计哲学）+ Go 知识（`encoding/json` 自定义序列化、`log/slog` 结构化日志、middleware 链模式）
+2. ✍️ 创建 `docs/learn/M4-mcp-server.md` 初始版（独立迷你示例 10-20 行，三轨齐全）
+3. ✍️ 同步创建 `docs/learn/M4-mcp-server.html`（同等地位，`<details>` 折叠 + `<aside>` 标注 + 打印样式）
+4. 💻 搭建项目骨架
+
+- [ ] T001 [P] 创建 `docs/learn/M4-mcp-server.md` 教学文档初始版 — 宪法 §6.2: (1) Go 轨道: encoding/json jsonschema tag 自定义序列化、log/slog 结构化日志、接口注入模式; (2) 逆向轨道: M4 逆向知识轻量——串联 M1-M3 已学知识 (Frida 生命周期 + Hook 类型 + YAML Spec) 构建 AI 可调用工作流; (3) AI 轨道: MCP 协议设计哲学 (JSON-RPC 2.0 + Tool/Resource/Prompt 三原语、LLM 如何通过 Tool 描述理解并调用外部能力)
+- [ ] T002 [P] 创建 `docs/learn/M4-mcp-server.html` — 与 .md 同等地位，`<details>/<summary>` 折叠区域、`<aside>` 标注框、`<dl>` 定义列表、`@media print` 打印样式
+- [ ] T003 [P] 添加 `github.com/modelcontextprotocol/go-sdk` v1.6.1 到 go.mod（`go get github.com/modelcontextprotocol/go-sdk@v1.6.1`）
+- [ ] T004 [P] 创建 `pkg/mcpserver/` 目录
 
 ---
 
@@ -30,12 +38,12 @@
 
 **⚠️ CRITICAL**: 本阶段未完成前，不得启动任何用户故事
 
-- [ ] T003 [P] 创建 `pkg/mcpserver/types.go` — 定义 MCP I/O 类型（`GenerateInput`、`ValidateInput`、`ValidateOutput`、`ValidationFieldError`、`DeviceListOutput`、`DeviceListItem`、`ProcessListInput`、`ProcessListOutput`）、`ProcessLister` 接口、`StubProcessLister` stub 实现
-- [ ] T004 [P] 创建 `pkg/mcpserver/mock_store.go` — 定义 YAML mock 数据类型（`MockDeviceConfig`、`MockProcessEntry`）和加载器 `LoadMockStore()`，读取 `~/.fridaforge/mock_devices.yaml`，构造 `StubDeviceLister` + `StubProcessLister`
-- [ ] T005 创建 `pkg/mcpserver/server.go` — 实现 `NewServer()` 构造函数和 `Run()` 方法，注册 4 个 Tool（handler 先用 stub），启动 stdio transport，`slog` logger 写入 `os.Stderr`（依赖 T003、T004）
-- [ ] T006 [P] 创建 `pkg/mcpserver/mock_store_test.go` — table-driven 测试：类型序列化/反序列化校验 + YAML mock 数据加载
+- [ ] T005 [P] 创建 `pkg/mcpserver/types.go` — 定义 MCP I/O 类型（`GenerateInput`、`ValidateInput`、`ValidateOutput`、`ValidationFieldError`、`DeviceListOutput`、`DeviceListItem`、`ProcessListInput`、`ProcessListOutput`）、`ProcessLister` 接口、`StubProcessLister` stub 实现
+- [ ] T006 [P] 创建 `pkg/mcpserver/mock_store.go` — 定义 YAML mock 数据类型（`MockDeviceConfig`、`MockProcessEntry`）和加载器 `LoadMockStore()`，读取 `~/.fridaforge/mock_devices.yaml`，构造 `StubDeviceLister` + `StubProcessLister`
+- [ ] T007 创建 `pkg/mcpserver/server.go` — 实现 `NewMCPServer` 构造函数和 `Run()` 方法，注册 4 个 Tool（handler 先用 stub），启动 stdio transport，`slog` logger 写入 `os.Stderr`（依赖 T005、T006）
+- [ ] T008 [P] 创建 `pkg/mcpserver/mock_store_test.go` — table-driven 测试：类型序列化/反序列化校验 + YAML mock 数据加载
 
-**Checkpoint**: 基础设施就绪——`NewServer()` 编译通过，4 个 Tool 已注册 stub handler。可开始用户故事实现。
+**Checkpoint**: 基础设施就绪——`NewMCPServer` 编译通过，4 个 Tool 已注册 stub handler。可开始用户故事实现。
 
 ---
 
@@ -47,10 +55,10 @@
 
 ### US1 + US2 实现
 
-- [ ] T007 [US1] 在 `pkg/mcpserver/tools_spec.go` 中实现 `spec_generate` handler：从 `GenerateInput` 组装 `spec.HookSpec` + `spec.HookTarget`，调用 `config.Validate()` 校验，调用 `codegen.Generator.Generate()` 生成脚本，返回 `*mcp.CallToolResult`（`TextContent` 含 Combined 脚本）
-- [ ] T008 [US2] 在 `pkg/mcpserver/tools_spec.go` 中实现 `spec_validate` handler：从 `ValidateInput` 组装配置，调用 `config.Validate()`，将 `spec.ValidationError`/`spec.FieldError` 转换为 `ValidateOutput`/`ValidationFieldError`（comprehensive——一次返回所有错误）
-- [ ] T009 [US1] 创建 `pkg/mcpserver/tools_spec_test.go` — table-driven 测试 `spec_generate` handler（overload/override/native 三种类型、错误场景：nil spec、缺 module_name、无效 hook_type）
-- [ ] T010 [US2] 在 `pkg/mcpserver/tools_spec_test.go` 中补充 table-driven 测试 `spec_validate` handler（合法参数、空 class_name、空 app_package、native 缺 module_name、无效 hook_type、多条错误 comprehensive 返回、重复 Hook warning）
+- [ ] T009 [US1] 在 `pkg/mcpserver/tools_spec.go` 中实现 `spec_generate` handler：从 `GenerateInput` 组装 `spec.HookSpec` + `spec.HookTarget`，调用 `config.Validate()` 校验，调用 `codegen.Generator.Generate()` 生成脚本，返回 `*mcp.CallToolResult`（`TextContent` 含 Combined 脚本）
+- [ ] T010 [US2] 在 `pkg/mcpserver/tools_spec.go` 中实现 `spec_validate` handler：从 `ValidateInput` 组装配置，调用 `config.Validate()`，将 `spec.ValidationError`/`spec.FieldError` 转换为 `ValidateOutput`/`ValidationFieldError`（comprehensive——一次返回所有错误）
+- [ ] T011 [US1] 创建 `pkg/mcpserver/tools_spec_test.go` — table-driven 测试 `spec_generate` handler（overload/override/native 三种类型、错误场景：nil spec、缺 module_name、无效 hook_type）
+- [ ] T012 [US2] 在 `pkg/mcpserver/tools_spec_test.go` 中补充 table-driven 测试 `spec_validate` handler（合法参数、空 class_name、空 app_package、native 缺 module_name、无效 hook_type、多条错误 comprehensive 返回、重复 Hook warning）
 
 **Checkpoint**: US1 和 US2 功能完整——`spec_generate` 产出真实 Frida JS 脚本，`spec_validate` 返回 comprehensive 字段级错误。MVP 就绪。
 
@@ -64,10 +72,10 @@
 
 ### US3 + US4 实现
 
-- [ ] T011 [US3] 在 `pkg/mcpserver/tools_device.go` 中实现 `device_list` handler：调用注入的 `DeviceLister.ListDevices(ctx)`，映射 `[]device.Device` → `[]DeviceListItem`，返回 `DeviceListOutput` 结构化 JSON
-- [ ] T012 [US4] 在 `pkg/mcpserver/tools_device.go` 中实现 `process_list` handler：调用注入的 `ProcessLister.ListProcesses(ctx, deviceID)`，成功返回 `ProcessListOutput`，失败返回 `isError: true` 含 "device not found" 信息
-- [ ] T013 [US3] 创建 `pkg/mcpserver/tools_device_test.go` — table-driven 测试 `device_list` handler（非空设备列表、空列表、lister 错误）
-- [ ] T014 [US4] 在 `pkg/mcpserver/tools_device_test.go` 中补充 table-driven 测试 `process_list` handler（有效设备返回进程列表、无效设备 ID 返回错误、lister 内部错误）
+- [ ] T013 [US3] 在 `pkg/mcpserver/tools_device.go` 中实现 `device_list` handler：调用注入的 `DeviceLister.ListDevices(ctx)`，映射 `[]device.Device` → `[]DeviceListItem`，返回 `DeviceListOutput` 结构化 JSON
+- [ ] T014 [US4] 在 `pkg/mcpserver/tools_device.go` 中实现 `process_list` handler：调用注入的 `ProcessLister.ListProcesses(ctx, deviceID)`，成功返回 `ProcessListOutput`，失败返回 `isError: true` 含 "device not found" 信息
+- [ ] T015 [US3] 创建 `pkg/mcpserver/tools_device_test.go` — table-driven 测试 `device_list` handler（非空设备列表、空列表、lister 错误）
+- [ ] T016 [US4] 在 `pkg/mcpserver/tools_device_test.go` 中补充 table-driven 测试 `process_list` handler（有效设备返回进程列表、无效设备 ID 返回错误、lister 内部错误）
 
 **Checkpoint**: 4 个 Tool 全部功能完整，可独立测试。
 
@@ -77,8 +85,8 @@
 
 **目标**: 将 MCP Server 作为 `fridaforge mcp` 子命令暴露
 
-- [ ] T015 创建 `cmd/fridaforge/mcp.go` — 实现 `mcpCmd` cobra 命令：创建 `NewServer()`（使用默认 YAML mock store），调用 `server.Run(context.Background(), &mcp.StdioTransport{})`，启动错误通过 stderr 输出
-- [ ] T016 在 `cmd/fridaforge/main.go` 中注册 `mcpCmd`：`init()` 中添加 `rootCmd.AddCommand(mcpCmd)`
+- [ ] T017 创建 `cmd/fridaforge/mcp.go` — 实现 `mcpCmd` cobra 命令：创建 `NewMCPServer`（使用默认 YAML mock store），调用 `server.Run(context.Background(), &mcp.StdioTransport{})`，启动错误通过 stderr 输出
+- [ ] T018 在 `cmd/fridaforge/main.go` 中注册 `mcpCmd`：`init()` 中添加 `rootCmd.AddCommand(mcpCmd)`
 
 ---
 
@@ -86,9 +94,13 @@
 
 **目标**: 集成测试、lint 检查和 quickstart 验证
 
-- [ ] T017 [P] 创建 `pkg/mcpserver/server_test.go` — 集成测试使用 `InMemoryTransport`：验证 initialize 握手、tools/list 返回 4 个 Tool、每个 Tool 的 tools/call 合法/非法参数、错误传播
-- [ ] T018 [P] 运行 `golangci-lint run ./pkg/mcpserver/... ./cmd/fridaforge/mcp.go` 并修复所有违规
-- [ ] T019 运行 quickstart 验证：编译二进制，启动 `fridaforge mcp`，验证 stdout 无噪音，stderr 日志含启动信息，模拟 stdin initialize 请求
+- [ ] T019 [P] 创建 `pkg/mcpserver/server_test.go` — 集成测试使用 `InMemoryTransport`：验证 initialize 握手、tools/list 返回 4 个 Tool、每个 Tool 的 tools/call 合法/非法参数、错误传播；包含 disconnect 子测试：关闭 transport 后验证 server 正常退出（FR-008）
+- [ ] T020 [P] 运行 `golangci-lint run ./pkg/mcpserver/... ./cmd/fridaforge/mcp.go` 并修复所有违规
+- [ ] T021 运行 quickstart 验证：编译二进制，启动 `fridaforge mcp`，验证 stdout 无噪音，stderr 日志含启动信息，模拟 stdin initialize 请求
+- [ ] T022 [P] 在 `pkg/mcpserver/server_test.go` 中添加 FR-010 安全审查测试：审计所有 MCP handler 不暴露 eval/exec/文件系统写入等危险操作路径（宪法 §4.3）
+- [ ] T023 [P] 在 `pkg/mcpserver/tools_spec_test.go` 中添加 SC-002/SC-003 benchmark 测试：spec_generate 单 Hook 耗时 ≤2s，spec_validate 耗时 ≤500ms（`testing.B` 或计时断言）
+- [ ] T024 [P] 在 `pkg/mcpserver/server_test.go` 中添加 SC-001 benchmark 测试：NewMCPServer() + server.Run() 启动握手耗时 ≤1s
+- [ ] T025 运行 `go test -coverprofile=coverage.out ./pkg/mcpserver/... && go tool cover -func=coverage.out` 验证关键路径总覆盖率 ≥80%（SC-006 门禁）
 
 ---
 
@@ -114,11 +126,12 @@ Phase 2 完成后，四个用户故事各自独立。
 
 ### 阶段内顺序
 
-- Phase 2: T003 ‖ T004 → T005 → T006
-- Phase 3: T007 + T008 同文件顺序实现 → T009 + T010
-- Phase 4: T011 + T012 同文件顺序实现 → T013 + T014
-- Phase 5: T015 → T016
-- Phase 6: T017 ‖ T018 → T019
+- Phase 1: T001 ‖ T002 ‖ T003 ‖ T004（所有 [P]，不同文件/操作）
+- Phase 2: T005 ‖ T006 → T007 → T008
+- Phase 3: T009 + T010 同文件顺序实现 → T011 + T012
+- Phase 4: T013 + T014 同文件顺序实现 → T015 + T016
+- Phase 5: T017 → T018
+- Phase 6: T019 ‖ T020 ‖ T021 ‖ T022 ‖ T023 ‖ T024（[P] 段）→ T025（覆盖率门禁）
 
 ---
 
@@ -126,34 +139,34 @@ Phase 2 完成后，四个用户故事各自独立。
 
 ### Phase 1
 ```
-T001 (go get) ‖ T002 (mkdir)
+T001 (teaching .md) ‖ T002 (teaching .html) ‖ T003 (go get) ‖ T004 (mkdir)
 ```
 
 ### Phase 2
 ```
-T003 (types.go) ‖ T004 (mock_store.go)   →   T005 (server.go)   →   T006 (测试)
+T005 (types.go) ‖ T006 (mock_store.go)   →   T007 (server.go)   →   T008 (测试)
 ```
 
 ### Phase 3 (同文件，顺序提交)
 ```
-T007 (spec_generate handler) + T008 (spec_validate handler)  →  T009 + T010 (测试)
+T009 (spec_generate handler) + T010 (spec_validate handler)  →  T011 + T012 (测试)
 ```
-T007 和 T008 共享 `pkg/mcpserver/tools_spec.go`——按 M1/M2 经验，同文件 Task 应合并 Commit。
+T009 和 T010 共享 `pkg/mcpserver/tools_spec.go`——按 M1/M2 经验，同文件 Task 应合并 Commit。
 
 ### Phase 4 (同文件，顺序提交)
 ```
-T011 (device_list handler) + T012 (process_list handler)  →  T013 + T014 (测试)
+T013 (device_list handler) + T014 (process_list handler)  →  T015 + T016 (测试)
 ```
 
 ### 跨阶段并行（多开发者场景）
 ```
 Phase 2 完成后:
-  开发者 A: Phase 3 (T007→T008→T009→T010)   ‖
-  开发者 B: Phase 4 (T011→T012→T013→T014)
+  开发者 A: Phase 3 (T009→T010→T011→T012)   ‖
+  开发者 B: Phase 4 (T013→T014→T015→T016)
 
 Phase 3+4 完成后:
-  开发者 A: Phase 5 (T015→T016)
-  开发者 B: Phase 6 (T017) ‖ T018 + T019
+  开发者 A: Phase 5 (T017→T018)
+  开发者 B: Phase 6 (T019 ‖ T020 ‖ T021 ‖ T022 ‖ T023 ‖ T024 → T025)
 ```
 
 ---
