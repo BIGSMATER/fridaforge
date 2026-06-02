@@ -25,10 +25,10 @@
 3. ✍️ 同步创建 `docs/learn/M4-mcp-server.html`（同等地位，`<details>` 折叠 + `<aside>` 标注 + 打印样式）
 4. 💻 搭建项目骨架
 
-- [ ] T001 [P] 创建 `docs/learn/M4-mcp-server.md` 教学文档初始版 — 宪法 §6.2: (1) Go 轨道: encoding/json jsonschema tag 自定义序列化、log/slog 结构化日志、接口注入模式; (2) 逆向轨道: M4 逆向知识轻量——串联 M1-M3 已学知识 (Frida 生命周期 + Hook 类型 + YAML Spec) 构建 AI 可调用工作流; (3) AI 轨道: MCP 协议设计哲学 (JSON-RPC 2.0 + Tool/Resource/Prompt 三原语、LLM 如何通过 Tool 描述理解并调用外部能力)
-- [ ] T002 [P] 创建 `docs/learn/M4-mcp-server.html` — 与 .md 同等地位，`<details>/<summary>` 折叠区域、`<aside>` 标注框、`<dl>` 定义列表、`@media print` 打印样式
-- [ ] T003 [P] 添加 `github.com/modelcontextprotocol/go-sdk` v1.6.1 到 go.mod（`go get github.com/modelcontextprotocol/go-sdk@v1.6.1`）
-- [ ] T004 [P] 创建 `pkg/mcpserver/` 目录
+- [x] T001 [P] 创建 `docs/learn/M4-mcp-server.md` 教学文档初始版 — 宪法 §6.2: (1) Go 轨道: encoding/json jsonschema tag 自定义序列化、log/slog 结构化日志、接口注入模式; (2) 逆向轨道: M4 逆向知识轻量——串联 M1-M3 已学知识 (Frida 生命周期 + Hook 类型 + YAML Spec) 构建 AI 可调用工作流; (3) AI 轨道: MCP 协议设计哲学 (JSON-RPC 2.0 + Tool/Resource/Prompt 三原语、LLM 如何通过 Tool 描述理解并调用外部能力)
+- [x] T002 [P] 创建 `docs/learn/M4-mcp-server.html` — 与 .md 同等地位，`<details>/<summary>` 折叠区域、`<aside>` 标注框、`<dl>` 定义列表、`@media print` 打印样式
+- [x] T003 [P] 添加 `github.com/modelcontextprotocol/go-sdk` v1.6.1 到 go.mod（`go get github.com/modelcontextprotocol/go-sdk@v1.6.1`）
+- [x] T004 [P] 创建 `pkg/mcpserver/` 目录
 
 ---
 

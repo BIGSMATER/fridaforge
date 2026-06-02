@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M4 学习笔记：MCP Server 集成</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; line-height: 1.7; color: #333; }
+  h1 { border-bottom: 2px solid #4a90d9; padding-bottom: 10px; }
+  h2 { margin-top: 40px; color: #2c5aa0; }
+  h3 { margin-top: 25px; color: #3a6db5; }
+  pre { background: #f5f5f5; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 14px; }
+  code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-size: 13px; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f0f4f8; }
+  aside { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; margin: 15px 0; }
+  dl { margin: 15px 0; }
+  dt { font-weight: bold; margin-top: 10px; }
+  dd { margin-left: 20px; color: #555; }
+  blockquote { background: #e7f3ff; border-left: 4px solid #4a90d9; padding: 10px 15px; margin: 15px 0; }
+  details { margin: 15px 0; border: 1px solid #ddd; border-radius: 6px; padding: 10px 15px; }
+  summary { cursor: pointer; font-weight: bold; color: #2c5aa0; }
+  @media print {
+    body { font-size: 12pt; }
+    pre, code { font-size: 10pt; }
+    aside { background: none; border: 1px solid #999; }
+  }
+</style>
+</head>
+<body>
+
+<h1>M4 学习笔记：MCP Server 集成</h1>
+
+<blockquote>
+  Milestone: M4 | 状态: 实现中<br>
+  三轨并行：Go 语言 / Android 逆向 / AI 编程范式
+</blockquote>
+
+<details open>
+<summary>全文大纲</summary>
+<ol>
+  <li><a href="#go">Go 语言轨道</a> — encoding/json struct tag, slog, interface 注入</li>
+  <li><a href="#reverse">逆向/底层轨道</a> — M4 在 FridaForge 知识体系中的位置</li>
+  <li><a href="#ai">AI 编程轨道</a> — MCP 协议设计哲学, JSON-RPC 2.0, LLM-Tool 交互</li>
+</ol>
+</details>
+
+<h2 id="go">一、Go 语言轨道</h2>
+
+<h3>1.1 encoding/json struct tag — 自定义序列化</h3>
+
+<p>Go 的 <code>encoding/json</code> 通过 struct tag 控制序列化行为。M4 中利用 json + jsonschema 双 tag 模式，让 MCP SDK 自动生成 Tool 的 inputSchema：</p>
+
+<pre><code>type GenerateInput struct {
+    AppPackage string `json:"app_package" jsonschema:"目标应用包名,required"`
+    ClassName  string `json:"class_name" jsonschema:"目标类全限定名,required"`
+}</code></pre>
+
+<p>tag 写在反引号内，key:value 用空格或逗号分隔。<code>json:"app_package"</code> 控制 JSON 字段名，<code>jsonschema:"描述,required"</code> 让 SDK 生成 JSON Schema 的 description 和 required。</p>
+
+<h3>1.2 log/slog 结构化日志</h3>
+
+<p>Go 1.21 引入的 <code>slog</code> 替代传统的 <code>log</code> 包，支持键值对结构化输出：</p>
+
+<pre><code>logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+logger.Info("tool called", "tool", "spec_generate", "class", "com.example.Test")</code></pre>
+
+<aside>
+  <strong>关键约束</strong>：MCP stdio 模式下，stdout 仅用于 JSON-RPC 协议消息，日志必须走 stderr。
+</aside>
+
+<h3>1.3 interface 注入模式 — 依赖解耦</h3>
+
+<p>Go 的 interface 实现是隐式的（不需要 implements 关键字）。通过构造函数注入接口实例实现依赖反转：</p>
+
+<pre><code>type ProcessLister interface {
+    ListProcesses(ctx context.Context, deviceID string) ([]ProcessListItem, error)
+}
+
+func NewMCPServer(deviceLister device.DeviceLister, processLister ProcessLister, logger *slog.Logger) *Server {
+    return &Server{deviceLister: deviceLister, processLister: processLister, logger: logger}
+}</code></pre>
+
+<p>M4 通过注入 <code>StubDeviceLister</code> + <code>StubProcessLister</code> 避免依赖 <code>pkg/fridaengine</code>（CGO 污染）。</p>
+
+<h2 id="reverse">二、逆向/底层轨道</h2>
+
+<h3>2.1 M4 在 FridaForge 知识体系中的位置</h3>
+
+<p>M4 的逆向知识是横向串联，而非纵向深入。它把 M1-M3 的产出物组装成 AI 工具可调用的形式：</p>
+
+<blockquote>
+  M1 (YAML 配置解析) + M2 (Frida 引擎) + M3 (代码生成器) = M4 (AI 可调用平台)
+</blockquote>
+
+<h3>2.2 Frida 知识全链表</h3>
+
+<table>
+  <tr><th>Milestone</th><th>知识单元</th><th>M4 中使用方式</th></tr>
+  <tr><td>M1</td><td>HookType (overload/override/native)</td><td>spec_generate Tool 按类型分发模板</td></tr>
+  <tr><td>M1</td><td>YAML HookSpec → Go struct</td><td>spec_validate Tool 校验参数</td></tr>
+  <tr><td>M2</td><td>DeviceLister interface</td><td>device_list Tool（Stub 模式）</td></tr>
+  <tr><td>M2</td><td>Frida 生命周期 (enumerate→attach→inject)</td><td>运行时知识储备，M4 通过 interface 解耦</td></tr>
+  <tr><td>M3</td><td>codegen.Generator.Generate()</td><td>spec_generate Tool 调用生成 JS 脚本</td></tr>
+  <tr><td>M3</td><td>三种 Hook 模板 (.js.tmpl)</td><td>生成器内部使用，M4 只调用接口</td></tr>
+</table>
+
+<h2 id="ai">三、AI 编程轨道</h2>
+
+<h3>3.1 MCP 协议设计哲学</h3>
+
+<p>MCP 是 LLM 与外部工具之间的标准化接口协议。三个核心原语：</p>
+
+<table>
+  <tr><th>原语</th><th>作用</th><th>类比</th></tr>
+  <tr><td>Tool</td><td>LLM 可调用的函数</td><td>REST POST 端点</td></tr>
+  <tr><td>Resource</td><td>LLM 可读取的数据</td><td>REST GET 端点</td></tr>
+  <tr><td>Prompt</td><td>预定义的提示模板</td><td>预设 prompt pattern</td></tr>
+</table>
+
+<p>M4 仅实现 <strong>Tool</strong> 原语。Resources 和 Prompts 推迟到后续 Milestone。</p>
+
+<h3>3.2 JSON-RPC 2.0 消息格式</h3>
+
+<pre><code>// 请求
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{...}}
+
+// 响应
+{"jsonrpc":"2.0","id":1,"result":{...}}
+
+// 错误
+{"jsonrpc":"2.0","id":1,"error":{"code":-32600,"message":"..."}}
+
+// 通知（无 id）
+{"jsonrpc":"2.0","method":"notifications/initialized"}</code></pre>
+
+<p>关键区别：请求有 <code>id</code>（需要响应），通知无 <code>id</code>（单向）。</p>
+
+<details>
+<summary>JSON-RPC 2.0 标准错误码</summary>
+<table>
+  <tr><th>Code</th><th>含义</th></tr>
+  <tr><td>-32700</td><td>Parse error — JSON 解析失败</td></tr>
+  <tr><td>-32600</td><td>Invalid Request — 不是合法 JSON-RPC</td></tr>
+  <tr><td>-32601</td><td>Method not found</td></tr>
+  <tr><td>-32602</td><td>Invalid params</td></tr>
+  <tr><td>-32603</td><td>Internal error</td></tr>
+</table>
+</details>
+
+<h3>3.3 LLM 如何"理解" Tool</h3>
+
+<p>LLM 通过 Tool 的三个属性来理解如何调用：</p>
+
+<dl>
+  <dt>name</dt>
+  <dd>唯一标识符（如 "spec_generate"），LLM 用字符串匹配选择 Tool</dd>
+  <dt>description</dt>
+  <dd>自然语言描述，LLM 判断何时使用</dd>
+  <dt>inputSchema</dt>
+  <dd>JSON Schema 结构化参数定义，LLM 构造调用参数</dd>
+</dl>
+
+<aside>
+  <strong>设计原则</strong>：一个设计良好的 Tool description 应该让 LLM 在 zero-shot 条件下（无示例）就能正确理解使用场景和参数含义。
+</aside>
+
+<hr>
+<p>状态: 初始版 — 实现阶段将补充项目实际代码示例</p>
+
+</body>
+</html>
