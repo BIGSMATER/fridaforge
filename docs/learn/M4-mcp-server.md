@@ -34,19 +34,74 @@ MCP stdio 的关键约束：**stdout 仅用于 JSON-RPC 协议消息，日志必
 
 ### 1.3 `interface` 注入模式 — 依赖解耦
 
-Go 的 interface 实现是隐式的（不需要 `implements` 关键字）。通过构造函数注入接口实例实现依赖反转：
+依赖注入的核心思想：**把"对象需要的东西"从外部传进去，而不是在内部自己创建**。
 
 ```go
-type ProcessLister interface {
-    ListProcesses(ctx context.Context, deviceID string) ([]ProcessListItem, error)
+// ❌ 硬编码依赖：Server 自己决定用什么 DeviceLister
+type Server struct {
+    lister *StubDeviceLister  // 写死了具体类型
+}
+func NewServer() *Server {
+    return &Server{lister: &StubDeviceLister{}}  // 内部创建
 }
 
-func NewMCPServer(deviceLister device.DeviceLister, processLister ProcessLister, logger *slog.Logger) *Server {
-    return &Server{deviceLister: deviceLister, processLister: processLister, logger: logger}
+// ✅ 依赖注入：调用者决定传什么进来
+type Server struct {
+    lister DeviceLister  // 依赖接口，不依赖具体类型
+}
+func NewServer(lister DeviceLister) *Server {  // 参数传进来
+    return &Server{lister: lister}
 }
 ```
 
-M4 通过注入 `StubDeviceLister` + `StubProcessLister` 避免依赖 `pkg/fridaengine`（CGO 污染）。
+**三层价值——为什么用依赖注入？**
+
+一是**方便测试**：换一个参数就切换了测试/生产模式，Server 内部代码一行不改。
+
+```go
+server := NewMCPServer(stubLister, ...)   // 测试时注入假数据
+server := NewMCPServer(fridaLister, ...)  // 生产时注入真实 Frida
+```
+
+二是**隔离 CGO 污染**：`pkg/fridaengine` 依赖 CGO（需要 Android NDK），M4 用 interface 切断编译时依赖链——不 import fridaengine 就能编译运行。
+
+三是**独立演进**：设备枚举的实现可以换成 ADB、Docker、模拟器——Server 完全不感知变化。
+
+**Go 的隐式 interface——与 Java 的关键区别**
+
+Go 不需要 `implements` 关键字。只要你有同名同签名的方法，就自动满足 interface：
+
+```go
+// pkg/device/manager.go —— 定义 interface（接口方）
+type DeviceLister interface {
+    ListDevices(ctx context.Context) ([]Device, error)
+}
+
+// pkg/fridaengine/device.go —— 实现 interface（实现方，零声明）
+type FridaDeviceLister struct { ... }
+func (f *FridaDeviceLister) ListDevices(ctx context.Context) ([]device.Device, error) { ... }
+// 不需要写 "implements DeviceLister" — 签名一致即自动满足
+
+// pkg/device/manager.go —— 另一个实现（同样零声明）
+type StubDeviceLister struct { ... }
+func (s *StubDeviceLister) ListDevices(ctx context.Context) ([]device.Device, error) { ... }
+```
+
+**M4 的注入全景**：
+
+```
+cmd/fridaforge/mcp.go —— 调用者负责创建依赖
+  │
+  ├── store := LoadMockStore("~/mock_devices.yaml")  ← 创建桩数据
+  │
+  └── NewMCPServer(
+        store.DeviceLister,   ← 注入 DeviceLister interface
+        store.ProcessLister,  ← 注入 ProcessLister interface
+        slog.New(...),        ← 注入 slog.Logger
+      )
+```
+
+Server 收到的都是 interface，不知道也不关心这些 interface 背后是真实 Frida 还是 YAML 文件。
 
 ---
 

@@ -38,10 +38,10 @@
 
 **⚠️ CRITICAL**: 本阶段未完成前，不得启动任何用户故事
 
-- [ ] T005 [P] 创建 `pkg/mcpserver/types.go` — 定义 MCP I/O 类型（`GenerateInput`、`ValidateInput`、`ValidateOutput`、`ValidationFieldError`、`DeviceListOutput`、`DeviceListItem`、`ProcessListInput`、`ProcessListOutput`）、`ProcessLister` 接口、`StubProcessLister` stub 实现
-- [ ] T006 [P] 创建 `pkg/mcpserver/mock_store.go` — 定义 YAML mock 数据类型（`MockDeviceConfig`、`MockProcessEntry`）和加载器 `LoadMockStore()`，读取 `~/.fridaforge/mock_devices.yaml`，构造 `StubDeviceLister` + `StubProcessLister`
-- [ ] T007 创建 `pkg/mcpserver/server.go` — 实现 `NewMCPServer` 构造函数和 `Run()` 方法，注册 4 个 Tool（handler 先用 stub），启动 stdio transport，`slog` logger 写入 `os.Stderr`（依赖 T005、T006）
-- [ ] T008 [P] 创建 `pkg/mcpserver/mock_store_test.go` — table-driven 测试：类型序列化/反序列化校验 + YAML mock 数据加载
+- [x] T005 [P] 创建 `pkg/mcpserver/types.go` — 定义 MCP I/O 类型（`GenerateInput`、`ValidateInput`、`ValidateOutput`、`ValidationFieldError`、`DeviceListOutput`、`DeviceListItem`、`ProcessListInput`、`ProcessListOutput`）、`ProcessLister` 接口、`StubProcessLister` stub 实现
+- [x] T006 [P] 创建 `pkg/mcpserver/mock_store.go` — 定义 YAML mock 数据类型（`MockDeviceConfig`、`MockProcessEntry`）和加载器 `LoadMockStore()`，读取 `~/.fridaforge/mock_devices.yaml`，构造 `StubDeviceLister` + `StubProcessLister`
+- [x] T007 创建 `pkg/mcpserver/server.go` — 实现 `NewMCPServer` 构造函数和 `Run()` 方法，注册 4 个 Tool（handler 先用 stub），启动 stdio transport，`slog` logger 写入 `os.Stderr`（依赖 T005、T006）
+- [x] T008 [P] 创建 `pkg/mcpserver/mock_store_test.go` — table-driven 测试：类型序列化/反序列化校验 + YAML mock 数据加载
 
 **Checkpoint**: 基础设施就绪——`NewMCPServer` 编译通过，4 个 Tool 已注册 stub handler。可开始用户故事实现。
 
