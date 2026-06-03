@@ -2,7 +2,7 @@
 
 > 本文档记录项目从 M0 到 M7 的完整里程碑路线图。每个 Milestone 的执行严格遵循 SpecKit 工作流。
 
-## 当前状态：M3 完成 → 准备进入 M4
+## 当前状态：M4 完成 → 准备进入 M5
 
 ---
 
@@ -70,13 +70,33 @@
 
 ---
 
-## M4：MCP Server 集成（`mcpserver`）
+## M4：MCP Server 集成（`mcpserver`）✅
 
 | 维度 | 内容 |
 |------|------|
-| **Go 知识** | `net/http.Server`、`encoding/json` 自定义序列化、middleware 链模式、`log/slog` 结构化日志 |
-| **AI 范式** | MCP 协议（JSON-RPC 2.0 + Streamable HTTP）、Tool/Resource/Prompt 设计哲学、LLM 如何通过 MCP 调用工具 |
+| **Go 知识** | 泛型 (`[In, Out any]`)、反射 (`reflect.TypeOf` + struct tag)、闭包捕获依赖（轻量 DI）、`log/slog` 结构化日志、interface 隐式实现 + 注入、`encoding/json` 自定义序列化 |
+| **AI 范式** | MCP 协议全流程（JSON-RPC 2.0 + stdio Transport + Tool/Resource/Prompt 三原语）、LLM 如何通过 Tool 定义理解并调用外部功能、opencode MCP 集成内部机制（注册表 → 翻译层 → 管道通信） |
 | **Harness** | opencode 本地 MCP 连接 FridaForge MCP Server，让大模型自动生成 Hook 脚本 |
+| **产出物** | `pkg/mcpserver/` 7 个源文件 (4 生产 + 3 测试)、`cmd/fridaforge/mcp.go` 新子命令、25 tasks 全部完成；28 tests + 3 benchmarks；覆盖率 88.4%；教学文档 539 行 (.md) + 416 行 (.html)；全链路 MCP 协议握手 + tools/list + tools/call 验证通过 |
+| **已提交** | 共计 14 commits on `004-mcpserver` |
+
+**M4 经验教训：**
+
+1. **闭包捕获依赖是 Go 中框架约束下的标准 DI 模式** — go-sdk 锁死 handler 签名后，Server 的依赖无法通过参数传入。闭包（匿名函数捕获外层变量）是 Go 解决"框架要固定签名、你的代码需要额外参数"的惯用方案。学员从"完全不懂闭包"到"理解轻量 DI"，梯度教学（普通函数 → 函数内部函数 → 返回闭包 → 捕获变量变化 → 项目代码）有效。
+
+2. **泛型 + 反射是 Go 框架设计的"编译期安全 + 运行时灵活"组合拳** — 泛型保证编译期类型安全（handler 签名不匹配直接编译报错），反射在运行时自动生成 JSON Schema（框架作者不需要知道你定义了什么 struct）。这种模式在 Go 第三方库中越来越常见。学员对反射的理解需要从"照镜子"的类比开始，再深入到 `reflect.TypeOf` → `Field.Tag.Get`。
+
+3. **MCP 协议的教学需要分层：概念 → 协议 → 实现** — 第一层讲"MCP 是 AI 和工具的翻译官"（概念），第二层讲 JSON-RPC 2.0 消息格式和生命周期（协议），第三层讲 go-sdk 怎么装箱 Go 函数变成 Tool（实现）。学员在第三层的"装箱"理解上困惑最多，需要把 `AddTool` 内部的"反射读 tag → JSON Schema"和"JSON 反序列化 → 调 handler → 序列化返回"拆成独立步骤。
+
+4. **文档交叉验证不可跳过——替换编辑极易丢失内容** — M4 的 spec.md 在一次编辑中丢失了"操作日志"Q&A 和"MCP 协议版本"edge case。原因是用 `edit` 工具做替换时，`oldString` 不完全匹配导致静默失败，后续编辑又无意中覆盖了之前的行。教训：每次修改多行文档后必须 `grep` 验证关键内容未丢失；`replaceAll` 比逐行替换更安全但需确认变换范围。
+
+5. **覆盖率高不等于行为正确——集成测试暴露语义偏差** — 单元测试覆盖率 92.4%，但集成测试（tools/call 全链路）暴露了两个问题：(a) `spec_validate` 在参数全空时 `isError=true`（预期是结构化输出），原因是 go-sdk 的 isError 设置逻辑与预期不同；(b) `process_list` 对不存在的设备返回空列表而非错误（与 spec US4-AS2 不一致）。这些在纯单元测试中完全不可见。
+
+6. **benchmark 不是"跑一下就行"——goroutine 泄漏会累积副作用** — `BenchmarkServerStartup` 初版用 `go server.Run()` 启动 server 后未等待退出，导致每次迭代泄漏一个 goroutine，产生 400+ ERROR 日志行的级联错误。Go benchmark 框架会按 `b.N` 放大每次迭代的代价，必须在迭代内完成完整生命周期（start → use → clean up）。修复：加 `sync.WaitGroup` 在每轮迭代内等待 server goroutine 退出。
+
+7. **教学文档章节命名应以知识点为准，非 Phase** — 此教训在 M3 已提出，M4 进一步验证。Phase 2 的 §1.4 最初命名为"项目实际代码示例 (Phase 2)"，后被重构为"go-sdk Tool 注册：泛型 + 反射协同模式"——这个标题本身就是知识点。代码示例应嵌入相关知识点章节，而非集中在一个"Phase N 项目代码" dump。
+
+8. **外部 SDK 的默认行为需要实际跑过才知道** — go-sdk 的 `StdioTransport` 在 stdin close 时立即返回 EOF error——这与预期"等待所有请求完成"不同。实际测试中 server 在收到最后一个请求后直接退出，导致客户端读不到响应。解决方案是不在测试中立即 close stdin，而是用 sleep/cat 保持管道开启。——此经验对任何依赖外部 SDK 的场景都适用。
 
 ---
 

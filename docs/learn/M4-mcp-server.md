@@ -1,6 +1,6 @@
 # M4 学习笔记：MCP Server 集成
 
-> Milestone: M4 | 状态: 实现中
+> Milestone: M4 | 状态: 已完成
 > 三轨并行：Go 语言 / Android 逆向 / AI 编程范式
 
 ---
