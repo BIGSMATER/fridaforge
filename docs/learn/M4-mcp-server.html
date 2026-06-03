@@ -337,8 +337,69 @@ p2()  // "World"</code></pre>
   <strong>设计原则</strong>：一个设计良好的 Tool description 应该让 LLM 在 zero-shot 条件下（无示例）就能正确理解使用场景和参数含义。
 </aside>
 
+<h3>3.4 MCP 基础知识与开发</h3>
+
+<p><strong>MCP 是什么</strong>：LLM 和外部工具之间的标准化通信协议。类比 HTTP 是浏览器 ↔ 服务器的协议，MCP 是 AI 助手 ↔ 外部工具的协议。它解决的根本问题：AI 的训练数据是离线快照，无法访问你的本地工具、文件、API——MCP 让 AI 有了"手"。</p>
+
+<p><strong>三个原语</strong>：</p>
+
+<table>
+  <tr><th>原语</th><th>做什么</th><th>类比</th><th>M4 实现？</th></tr>
+  <tr><td><strong>Tool</strong></td><td>LLM 调用你写的函数</td><td>REST POST</td><td>✅ 4 个</td></tr>
+  <tr><td><strong>Resource</strong></td><td>LLM 读取数据</td><td>REST GET</td><td>❌</td></tr>
+  <tr><td><strong>Prompt</strong></td><td>预定义提示模板</td><td>快捷短语</td><td>❌</td></tr>
+</table>
+
+<p><strong>Tool 的三要素</strong>：<code>name</code>（LLM 名字匹配）+ <code>description</code>（LLM 理解用途）+ <code>inputSchema</code>（LLM 构造参数）。LLM 看到这三个属性就能独立完成"什么时候用、传什么参数"的决策。</p>
+
+<p><strong>协议生命周期</strong>：initialize（握手）→ notifications/initialized（就绪）→ tools/call（操作）→ stdin close（关闭）。四步完成一次交互。</p>
+
+<p><strong>JSON-RPC 2.0 线格式</strong>——四种消息类型，靠 <code>id</code> 匹配请求和响应。请求有 id（需响应），通知无 id（单向）。</p>
+
+<details open>
+<summary>用 go-sdk 开发 MCP Server——最小完整示例</summary>
+<pre><code>// 第 1 步：定义 I/O 类型（jsonschema tag → SDK 自动生成 JSON Schema）
+type Input struct {
+    Name string `json:"name" jsonschema:"要打招呼的人名,required"`
+}
+type Output struct {
+    Greeting string `json:"greeting"`
+}
+
+// 第 2 步：实现 handler（普通 Go 函数，SDK 负责 JSON↔Go 转换）
+func handler(ctx context.Context, req *mcp.CallToolRequest, input Input) (
+    *mcp.CallToolResult, Output, error) {
+    return &mcp.CallToolResult{...}, Output{Greeting: "Hi " + input.Name}, nil
+}
+
+// 第 3-5 步：创建 server → 注册 Tool → 启动
+server := mcp.NewServer(&mcp.Implementation{Name: "greeter", Version: "1.0"}, nil)
+mcp.AddTool(server, &mcp.Tool{Name: "greet", Description: "打招呼"}, handler)
+server.Run(context.Background(), &mcp.StdioTransport{})</code></pre>
+</details>
+
+<h3>3.5 opencode MCP 集成内部机制</h3>
+
+<p><strong>第 1 步：opencode 连接 MCP 服务器</strong>——启动时对所有配置的 MCP server 调 <code>tools/list</code>，建立全局注册表 <code>map[toolName]mcpServerConnection</code>。</p>
+
+<p><strong>第 2 步：LLM 输出 function_call</strong>——不是 JSON，是结构化标记（Claude 用 tool_use content block，OpenAI 用 tool_calls）。opencode 内部的翻译层将其转换为标准 MCP 的 <code>tools/call</code> 请求，通过对应 server 的 stdin 发送。</p>
+
+<p><strong>第 3 步：Go 函数怎么变成 Tool</strong>——<code>AddTool</code> 在运行时"装箱"你的 handler：反射读 struct tag → 生成 JSON Schema；包装一层 JSON 反序列化 + 调用 + 序列化；存入路由表。之后 <code>tools/call</code> 到达时查表 → 反序列化参数 → 调用你的原始函数 → 序列化返回。</p>
+
+<pre><code>// go-sdk 内部的装箱逻辑（概念代码）
+func AddTool[In, Out any](... ) {
+    schema := reflectSchema(reflect.TypeOf(In))        // 装箱1: 反射→JSON Schema
+    wrapped := func(req) {                              // 装箱2: JSON↔Go转换
+        var in In; json.Unmarshal(req.Args, &in)
+        return handler(ctx, req, in)                     // 装箱3: 调用你的函数
+    }
+    server.tools[name] = &tool{schema, wrapped}         // 装箱4: 存入路由表
+}</code></pre>
+
+<blockquote>完整链路：LLM 输出 function_call → opencode 查注册表找对应的 MCP server → 构造 tools/call JSON-RPC → 写 stdin → go-sdk 路由查表 → json.Unmarshal → 调你的 handler → json.Marshal → 写 stdout → opencode 读结果 → 还给 LLM</blockquote>
+
 <hr>
-<p>状态: Phase 2 完成 — 已补充 §1.4 项目实际代码示例。Phase 3 将补充 tools_spec.go 的 handler 代码。</p>
+<p>状态: 实现完成 — 全部 25/25 任务，覆盖率 88.4%。§3.4 新增 MCP 基础知识与开发，§3.5 新增 opencode 集成内部机制（发现 + 调用 + 函数变 Tool）。</p>
 
 </body>
 </html>

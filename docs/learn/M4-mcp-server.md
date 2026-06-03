@@ -358,6 +358,241 @@ LLM 通过 Tool 的三个属性来理解如何调用：
 
 一个设计良好的 Tool description 应该让 LLM 在 **zero-shot** 条件下（无示例）就能正确理解使用场景和参数含义。
 
+### 3.4 MCP 基础知识与开发
+
+**MCP 是什么**：LLM 和外部工具之间的标准化通信协议。类比 HTTP 是浏览器 ↔ 服务器的协议，MCP 是 AI 助手 ↔ 外部工具的协议。它解决的根本问题：AI 的训练数据是离线快照，无法访问你的本地工具、文件、API——MCP 让 AI 有了"手"。
+
+**三个原语**（MCP 提供的三种能力类型）：
+
+| 原语 | 做什么 | 类比 | M4 实现？ |
+|------|--------|---------|-----------|
+| **Tool** | LLM 调用你写的函数 | REST POST | ✅ 4 个 |
+| **Resource** | LLM 读取数据（文件、数据库） | REST GET | ❌ M4 不需要 |
+| **Prompt** | 预定义的提示模板 | 快捷短语 | ❌ M4 不需要 |
+
+Tool 的三要素：
+
+```json
+{
+  "name": "spec_generate",                     // LLM 通过名字匹配
+  "description": "生成 Frida Hook 脚本",        // LLM 通过描述理解用途
+  "inputSchema": {                             // LLM 通过 Schema 构造参数
+    "type": "object",
+    "properties": {
+      "class_name": {"type": "string", "description": "目标类名"}
+    }
+  }
+}
+```
+
+LLM 看到 Tool 定义 → 名字匹配 → 理解用途 → 构造参数 → 发起调用——全程不需要人类写任何适配代码。
+
+**协议生命周期（4 步）**：
+
+```
+Client                          Server
+  │── initialize ────────────────►│  (1) 握手：协商版本+能力
+  │◄── capabilities + serverInfo ─│
+  │── notifications/initialized ──►│  (2) 就绪：客户端确认
+  │── tools/call ────────────────►│  (3) 操作：调用 Tool
+  │◄── result ────────────────────│
+  │── stdin close ───────────────►│  (4) 关闭：优雅退出
+```
+
+**JSON-RPC 2.0 线格式**——MCP 的每行消息都符合此格式。四种类型，靠 `id` 匹配请求和响应：
+
+```json
+// 请求（有 id → 需要响应）
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"spec_generate",...}}
+// 响应（id 与请求匹配）
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"..."}]}}
+// 错误（id 与请求匹配）
+{"jsonrpc":"2.0","id":1,"error":{"code":-32600,"message":"invalid params"}}
+// 通知（无 id → 不需要响应）
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+```
+
+`id` 是自增计数器。客户端发 1、2、3，服务端可以按任意顺序回复——靠 id 对应。通知没有 id，客户端不期待响应。
+
+**传输层选择——为什么用 stdio**：
+
+```
+opencode 启动 fridaforge 作为子进程
+  ├─ stdout ← JSON-RPC 协议消息（一行一条 JSON）
+  └─ stderr ← 日志输出（slog）
+```
+
+```go
+// Go 代码中启动 stdio
+transport := &mcp.StdioTransport{}
+server.Run(context.Background(), transport)
+// 内部自动：读 stdin → 解析 JSON-RPC → 调 handler → 写 stdout
+```
+
+为什么不用 HTTP？本地子进程场景下 stdio 更简单：无端口冲突、无防火墙、无需序列化开销。AI 工具直接 fork 子进程就能通信。HTTP 适用于远程 MCP 服务器（共享服务）。
+
+**用 go-sdk 开发一个 MCP Server——最小完整示例**：
+
+```go
+// 第 1 步：定义 I/O 类型（带 jsonschema tag，SDK 自动生成 JSON Schema）
+type Input struct {
+    Name string `json:"name" jsonschema:"要打招呼的人名,required"`
+}
+type Output struct {
+    Greeting string `json:"greeting"`
+}
+
+// 第 2 步：实现 handler（普通 Go 函数，SDK 负责 JSON↔Go 转换）
+func handler(ctx context.Context, req *mcp.CallToolRequest, input Input) (
+    *mcp.CallToolResult, Output, error) {
+    return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Hi " + input.Name}}},
+        Output{Greeting: "Hi " + input.Name}, nil
+}
+
+// 第 3 步：创建 server
+server := mcp.NewServer(&mcp.Implementation{Name: "greeter", Version: "1.0"}, nil)
+
+// 第 4 步：注册 Tool（泛型自动推断 In/Out 类型）
+mcp.AddTool(server, &mcp.Tool{Name: "greet", Description: "打招呼"}, handler)
+
+// 第 5 步：启动 stdio 传输
+server.Run(context.Background(), &mcp.StdioTransport{})
+```
+
+go-sdk 自动完成：JSON 反序列化参数 → 调 handler → Go 返回值序列化为 JSON → 写入 stdout。你只写 struct + handler。
+
+**opencode 如何连接 MCP Server**——在 `opencode.jsonc` 配置：
+
+```jsonc
+{
+  "mcp": {
+    "fridaforge": {
+      "type": "local",                           // 本地子进程
+      "command": ["./fridaforge", "mcp"],         // 启动命令
+      "enabled": true
+    }
+  }
+}
+```
+
+opencode 启动时自动 fork `./fridaforge mcp`，通过 stdin/stdout 建立连接，然后调用 `tools/list` 获取 Tool 列表——全部自动。
+
+### 3.5 opencode MCP 集成内部机制——从 LLM 决策到 Go 函数被调用
+
+**第 1 步：opencode 连接 MCP 服务器**
+
+```
+opencode.jsonc
+  ├─ fork fridaforge → tools/list → 
+  │    注册表: {spec_generate→fridaforge, spec_validate→fridaforge, ...}
+  ├─ fork sentry → tools/list →
+  │    注册表: {sentry_search→sentry, sentry_get_issue→sentry, ...}
+  └─ 连接 context7 → tools/list → ...
+```
+
+opencode 维护一个全局注册表：`map[toolName]mcpServerConnection`。启动时对所有配置的 MCP 服务器调 `tools/list`，建立这个映射。
+
+**第 2 步：LLM 输出 function_call**
+
+LLM 的输出不是 JSON，是结构化标记（不同模型格式不同）：
+
+```json
+// Anthropic Claude 格式
+{"role":"assistant","content":[{"type":"tool_use","name":"spec_generate","input":{...}}]}
+
+// OpenAI 格式
+{"choices":[{"message":{"tool_calls":[{"function":{"name":"spec_generate","arguments":"{...}"}}]}}]}
+```
+
+**第 3 步：opencode 内部翻译——function_call → MCP 请求**
+
+opencode 内部有一个翻译层（概念代码）：
+
+```go
+func handleLLMToolCall(tc LLMToolCall) string {
+    // a. 查"这个 tool 属于哪个 MCP server"
+    server := globalRegistry[tc.Name]  // spec_generate → fridaforge 连接
+
+    // b. 构造 JSON-RPC 请求
+    req := `{"jsonrpc":"2.0","id":4,"method":"tools/call",
+             "params":{"name":"` + tc.Name + `","arguments":` + tc.Args + `}}`
+
+    // c. 写入 MCP server 的 stdin
+    server.StdinPipe.Write([]byte(req + "\n"))
+
+    // d. 从 MCP server 的 stdout 读回响应
+    resp := readLine(server.StdoutPipe)
+
+    // e. 提取结果，返回给 LLM
+    return resp.Result.Content[0].Text
+}
+```
+
+关键：opencode 只是**管道工**——它不知道 Tool 内部做了什么，只管正确路由。把 LLM 的 function_call 翻译成 JSON-RPC，发给对应的 MCP server，把返回结果还给 LLM。
+
+**第 4 步：Go 函数怎么变成 Tool 的——go-sdk 内部"装箱"**
+
+`AddTool` 在运行时做了三层包装：
+
+```go
+// go-sdk 内部概念代码
+func AddTool[In, Out any](server *Server, tool *Tool, handler ToolHandlerFor[In, Out]) {
+    // ── 装箱 1：反射读 struct tag → JSON Schema ──
+    var zero In  // 零值 GenerateInput{}
+    schema := reflectSchema(reflect.TypeOf(zero))
+    // AppPackage `jsonschema:"目标应用包名,required"` → {"type":"string","description":"目标应用包名"}
+
+    // ── 装箱 2：JSON 反序列化 + 序列化 ──
+    wrapped := func(ctx context.Context, req *jsonrpc.Request) (any, error) {
+        var in In
+        json.Unmarshal(req.Params.Arguments, &in)             // JSON → Go struct
+        result, out, err := handler(ctx, &CallToolRequest{}, in) // 调用你的函数
+        return serialize(result, out, err), nil                // Go → JSON
+    }
+
+    // ── 装箱 3：存入路由表 ──
+    server.tools["spec_generate"] = &registeredTool{
+        tool:    tool,       // name + description
+        schema:  schema,     // JSON Schema
+        handler: wrapped,    // 装箱后的 handler
+    }
+}
+```
+
+当 `tools/call {"name":"spec_generate","arguments":{...}}` 到达时：
+```
+stdin → JSON-RPC 路由 → 查 server.tools["spec_generate"]
+  → wrappedHandler 执行
+    → json.Unmarshal → generateHandler() → json.Marshal
+      → 写入 stdout
+```
+
+`tools/list` 时 → 遍历 server.tools → 返回所有 Tool 的 name + description + schema。
+
+**完整链路图**：
+
+```
+opencode           LLM               opencode            MCP协议            fridaforge
+  │ "生成Hook"       │                  │                   │                   │
+  │─────────────────►│                  │                   │                   │
+  │                  │ LLM 推理:         │                   │                   │
+  │                  │ 匹配 spec_generate│                   │                   │
+  │                  │ function_call:    │                   │                   │
+  │                  │ {name,args}       │                   │                   │
+  │                  │──────────────────│                   │                   │
+  │                  │                  │ 查注册表→fridaforge│                   │
+  │                  │                  │ tools/call        │                   │
+  │                  │                  │ {name,arguments}  │                   │
+  │                  │                  │──────────────────►│                   │
+  │                  │                  │                   │  查 server.tools   │
+  │                  │                  │                   │  json.Unmarshal    │
+  │                  │                  │                   │  generateHandler() │
+  │                  │                  │                   │  json.Marshal      │
+  │                  │                  │◄─────────────────│                   │
+  │                  │  返回脚本内容      │                   │                   │
+  │◄─────────────────│                  │                   │                   │
+```
+
 ---
 
-> 状态: Phase 3 完成 — §1.5 新增"闭包捕获依赖：Go 的轻量 DI"（从零概念 → 项目代码）。Phase 4 将补充 device_list/process_list handler。
+> 状态: 实现完成 — 全部 25/25 任务，覆盖率 88.4%。§3.4 新增 MCP 基础知识与开发，§3.5 新增 opencode 集成内部机制（发现 + 调用 + 函数变 Tool）。
