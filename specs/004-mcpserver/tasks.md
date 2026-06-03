@@ -85,8 +85,8 @@
 
 **目标**: 将 MCP Server 作为 `fridaforge mcp` 子命令暴露
 
-- [ ] T017 创建 `cmd/fridaforge/mcp.go` — 实现 `mcpCmd` cobra 命令：创建 `NewMCPServer`（使用默认 YAML mock store），调用 `server.Run(context.Background(), &mcp.StdioTransport{})`，启动错误通过 stderr 输出
-- [ ] T018 在 `cmd/fridaforge/main.go` 中注册 `mcpCmd`：`init()` 中添加 `rootCmd.AddCommand(mcpCmd)`
+- [x] T017 创建 `cmd/fridaforge/mcp.go` — 实现 `mcpCmd` cobra 命令：创建 `NewMCPServer`（使用默认 YAML mock store），调用 `server.Run(context.Background(), &mcp.StdioTransport{})`，启动错误通过 stderr 输出
+- [x] T018 在 `cmd/fridaforge/main.go` 中注册 `mcpCmd`：`init()` 中添加 `rootCmd.AddCommand(mcpCmd)`
 
 ---
 
