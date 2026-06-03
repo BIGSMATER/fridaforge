@@ -55,7 +55,7 @@
 
 ### US1 + US2 实现
 
-- [x] T009 [US1] 在 `pkg/mcpserver/server.go` 中实现 `spec_generate` handler（作为 `Server` 方法，闭包注入依赖）：从 `GenerateInput` 组装 `spec.HookSpec` + `spec.HookTarget`，调用 `config.Validate()` 校验，调用 `codegen.Generator.Generate()` 生成脚本，返回 `*mcp.CallToolResult`（`TextContent` 含 Combined 脚本）
+- [x] T009 [US1] 在 `pkg/mcpserver/server.go` 中实现 `spec_generate` handler（作为 `Server` 方法，闭包注入依赖）：从 `GenerateInput` 组装 `spec.HookSpec` + `spec.HookTarget`，调用 `config.Validate()` 校验，调用 `codegen.Generator.Generate()` 生成脚本，传入 `input.FridaVersion`（空时默认 "16"），返回 `*mcp.CallToolResult`（`TextContent` 含 Combined 脚本）
 - [x] T010 [US2] 在 `pkg/mcpserver/server.go` 中实现 `spec_validate` handler（作为 `Server` 方法）：从 `ValidateInput` 组装配置，调用 `config.Validate()`，将 `spec.ValidationError`/`spec.FieldError` 转换为 `ValidateOutput`/`ValidationFieldError`（comprehensive——一次返回所有错误）
 - [x] T011 [US1] 创建 `pkg/mcpserver/tools_spec_test.go` — table-driven 测试 `spec_generate` handler（overload/override/native 三种类型、错误场景：nil spec、缺 module_name、无效 hook_type）
 - [x] T012 [US2] 在 `pkg/mcpserver/tools_spec_test.go` 中补充 table-driven 测试 `spec_validate` handler（合法参数、空 class_name、空 app_package、native 缺 module_name、无效 hook_type、多条错误 comprehensive 返回、重复 Hook warning）

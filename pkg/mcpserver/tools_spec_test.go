@@ -73,6 +73,17 @@ func TestGenerateHandler_Success(t *testing.T) {
 			},
 			want: "overload",
 		},
+		{
+			name: "Frida 17 版本",
+			input: GenerateInput{
+				AppPackage:   "com.example.app",
+				ClassName:    "com.example.Test",
+				MethodName:   "hello",
+				HookType:     "overload",
+				FridaVersion: "17",
+			},
+			want: "Java.perform",
+		},
 	}
 
 	for _, tt := range tests {

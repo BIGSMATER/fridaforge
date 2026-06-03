@@ -13,12 +13,13 @@ import (
 
 // GenerateInput 是 spec_generate Tool 的输入参数
 type GenerateInput struct {
-	AppPackage string `json:"app_package" jsonschema:"目标应用包名，如 com.example.app,required"`
-	ClassName  string `json:"class_name" jsonschema:"目标类全限定名，如 com.example.Test,required"`
-	MethodName string `json:"method_name" jsonschema:"目标方法名,required"`
-	HookType   string `json:"hook_type" jsonschema:"Hook 类型: overload/override/native,required"`
-	Signature  string `json:"signature,omitempty" jsonschema:"方法参数签名，仅 overload 时可选"`
-	ModuleName string `json:"module_name,omitempty" jsonschema:"原生 .so 模块名，仅 native 时必填"`
+	AppPackage   string `json:"app_package" jsonschema:"目标应用包名，如 com.example.app,required"`
+	ClassName    string `json:"class_name" jsonschema:"目标类全限定名，如 com.example.Test,required"`
+	MethodName   string `json:"method_name" jsonschema:"目标方法名,required"`
+	HookType     string `json:"hook_type" jsonschema:"Hook 类型: overload/override/native,required"`
+	Signature    string `json:"signature,omitempty" jsonschema:"方法参数签名，仅 overload 时可选"`
+	ModuleName   string `json:"module_name,omitempty" jsonschema:"原生 .so 模块名，仅 native 时必填"`
+	FridaVersion string `json:"frida_version,omitempty" jsonschema:"目标 Frida 版本: 16 或 17（默认 16）"`
 }
 
 // GenerateOutput 是 spec_generate Tool 的输出结果

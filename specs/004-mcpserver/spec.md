@@ -15,6 +15,7 @@
 - Q: MCP 库选型？ → A: 官方 `modelcontextprotocol/go-sdk`，类型安全 handler 模式，内置 stdio transport，官方维护。
 - Q: 校验发现多个字段错误时的报告粒度？ → A: 一次性返回所有字段错误（comprehensive），AI 一次修正全部问题，减少往返次数。
 - Q: 操作日志输出目标？ → A: stderr（标准错误输出），stdout 保留给 MCP JSON-RPC 协议消息，两者隔离。
+- Q: Frida 版本硬编码问题？ → A: `spec_generate` Tool 新增 `frida_version` 可选参数（默认 "16"），由 AI 调用方指定目标 Frida 版本，Generator 已支持版本自适应。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -88,6 +89,7 @@
 - 客户端意外断开连接？→ 服务检测到断开后优雅退出，释放已占用资源。
 - 生成 native 类型 Hook 时缺少 `module_name`？→ 返回明确的参数校验错误，提示缺少模块名。
 - MCP 协议版本兼容性？→ 由底层 MCP 通信库处理版本协商，FridaForge 不感知特定协议版本号。
+- 用户指定不支持的 Frida 版本号？→ Generator 已内置版本自适应逻辑（当前支持 "16" 和 "17"），不支持的版本按默认 "16" 处理。
 
 ---
 
@@ -108,6 +110,7 @@
 - **FR-011**: "生成 Hook 脚本"和"校验 Hook 参数"能力 MUST 复用已有的代码生成和配置校验逻辑，保持行为一致性。
 - **FR-012**: FridaForge 命令行 MUST 提供启动 MCP 服务的入口，通过标准输入/输出管道（stdio）与 AI 工具通信，使 AI 工具能将其作为子进程启动。
 - **FR-013**: MCP 服务 MUST 在启动时自动完成与客户端的协议握手，无需用户手动配置。
+- **FR-014**: `spec_generate` Tool MUST 接受可选的 `frida_version` 参数（默认 "16"），使 AI 调用方可指定目标 Frida 版本，代码生成器据此选择对应的模板策略。
 
 ### Key Entities
 

@@ -91,7 +91,7 @@ func (s *Server) generateHandler(ctx context.Context, req *mcp.CallToolRequest, 
 		return nil, GenerateOutput{}, fmt.Errorf("参数校验失败: %w", err)
 	}
 
-	output, err := s.generator.Generate(hookSpec, "16")
+	output, err := s.generator.Generate(hookSpec, input.FridaVersion)
 	if err != nil {
 		s.logger.Error("spec_generate 生成失败", "error", err)
 		return nil, GenerateOutput{}, fmt.Errorf("脚本生成失败: %w", err)
