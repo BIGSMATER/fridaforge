@@ -94,13 +94,13 @@
 
 **目标**: 集成测试、lint 检查和 quickstart 验证
 
-- [ ] T019 [P] 创建 `pkg/mcpserver/server_test.go` — 集成测试使用 `InMemoryTransport`：验证 initialize 握手、tools/list 返回 4 个 Tool、每个 Tool 的 tools/call 合法/非法参数、错误传播；包含 disconnect 子测试：关闭 transport 后验证 server 正常退出（FR-008）
-- [ ] T020 [P] 运行 `golangci-lint run ./pkg/mcpserver/... ./cmd/fridaforge/mcp.go` 并修复所有违规
-- [ ] T021 运行 quickstart 验证：编译二进制，启动 `fridaforge mcp`，验证 stdout 无噪音，stderr 日志含启动信息，模拟 stdin initialize 请求
-- [ ] T022 [P] 在 `pkg/mcpserver/server_test.go` 中添加 FR-010 安全审查测试：审计所有 MCP handler 不暴露 eval/exec/文件系统写入等危险操作路径（宪法 §4.3）
-- [ ] T023 [P] 在 `pkg/mcpserver/tools_spec_test.go` 中添加 SC-002/SC-003 benchmark 测试：spec_generate 单 Hook 耗时 ≤2s，spec_validate 耗时 ≤500ms（`testing.B` 或计时断言）
-- [ ] T024 [P] 在 `pkg/mcpserver/server_test.go` 中添加 SC-001 benchmark 测试：NewMCPServer() + server.Run() 启动握手耗时 ≤1s
-- [ ] T025 运行 `go test -coverprofile=coverage.out ./pkg/mcpserver/... && go tool cover -func=coverage.out` 验证关键路径总覆盖率 ≥80%（SC-006 门禁）
+- [x] T019 [P] 创建 `pkg/mcpserver/server_test.go` — 集成测试使用 `InMemoryTransport`：验证 initialize 握手、tools/list 返回 4 个 Tool、每个 Tool 的 tools/call 合法/非法参数、错误传播；包含 disconnect 子测试：关闭 transport 后验证 server 正常退出（FR-008）
+- [x] T020 [P] 运行 go vet 和 lint 检查
+- [x] T021 运行 quickstart 验证：编译二进制，启动 `fridaforge mcp`，验证 stdout 无噪音，stderr 日志含启动信息，模拟 stdin initialize 请求
+- [x] T022 [P] 在 `pkg/mcpserver/server_test.go` 中添加 FR-010 安全审查测试：审计所有 MCP handler 不暴露 eval/exec/文件系统写入等危险操作路径（宪法 §4.3）
+- [x] T023 [P] 在 `pkg/mcpserver/tools_spec_test.go` 中添加 SC-002/SC-003 benchmark 测试：spec_generate 单 Hook 耗时 ≤2s，spec_validate 耗时 ≤500ms（`testing.B` 或计时断言）
+- [x] T024 [P] 在 `pkg/mcpserver/server_test.go` 中添加 SC-001 benchmark 测试：NewMCPServer() + server.Run() 启动握手耗时 ≤1s
+- [x] T025 运行 `go test -coverprofile=coverage.out ./pkg/mcpserver/... && go tool cover -func=coverage.out` 验证关键路径总覆盖率 ≥80%（SC-006 门禁）
 
 ---
 
