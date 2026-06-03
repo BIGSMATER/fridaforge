@@ -73,12 +73,15 @@ func (f deviceListerFunc) ListDevices(ctx context.Context) ([]device.Device, err
 // ---------- T014: process_list handler 测试 ----------
 
 func TestProcessListHandler_Success(t *testing.T) {
+	dlister := &mockDeviceLister{
+		devices: []device.Device{{ID: "dev1", Name: "Device 1", ConnectType: "usb"}},
+	}
 	lister := &StubProcessLister{
 		processesByDevice: map[string][]ProcessListItem{
 			"dev1": {{PID: 100, Name: "app1"}, {PID: 200, Name: "app2"}},
 		},
 	}
-	srv := &Server{processLister: lister, logger: slog.New(slog.DiscardHandler)}
+	srv := &Server{deviceLister: dlister, processLister: lister, logger: slog.New(slog.DiscardHandler)}
 
 	_, output, err := srv.processListHandler(context.Background(), nil, ProcessListInput{DeviceID: "dev1"})
 	if err != nil {
@@ -90,20 +93,27 @@ func TestProcessListHandler_Success(t *testing.T) {
 }
 
 func TestProcessListHandler_NoSuchDevice(t *testing.T) {
-	lister := &StubProcessLister{processesByDevice: map[string][]ProcessListItem{}}
-	srv := &Server{processLister: lister, logger: slog.New(slog.DiscardHandler)}
-
-	_, output, err := srv.processListHandler(context.Background(), nil, ProcessListInput{DeviceID: "nonexistent"})
-	if err != nil {
-		t.Fatalf("不存在的设备不应报错: %v", err)
+	dlister := &mockDeviceLister{
+		devices: []device.Device{{ID: "dev1", Name: "Device 1", ConnectType: "usb"}},
 	}
-	if len(output.Processes) != 0 {
-		t.Errorf("期望空列表，实际 %d", len(output.Processes))
+	lister := &StubProcessLister{processesByDevice: map[string][]ProcessListItem{}}
+	srv := &Server{deviceLister: dlister, processLister: lister, logger: slog.New(slog.DiscardHandler)}
+
+	_, _, err := srv.processListHandler(context.Background(), nil, ProcessListInput{DeviceID: "nonexistent"})
+	if err == nil {
+		t.Fatal("不存在设备应返回错误")
+	}
+	if !strings.Contains(err.Error(), "设备不存在") {
+		t.Errorf("错误应包含'设备不存在': %v", err)
 	}
 }
 
 func TestProcessListHandler_ListerError(t *testing.T) {
+	dlister := &mockDeviceLister{
+		devices: []device.Device{{ID: "dev1", Name: "Device 1", ConnectType: "usb"}},
+	}
 	srv := &Server{
+		deviceLister: dlister,
 		processLister: processListerFunc(func(ctx context.Context, deviceID string) ([]ProcessListItem, error) {
 			return nil, errors.New("internal error")
 		}),

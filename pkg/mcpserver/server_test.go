@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -297,7 +298,7 @@ func BenchmarkSpecValidate(b *testing.B) {
 }
 
 func BenchmarkServerStartup(b *testing.B) {
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	gen, _ := codegen.NewGenerator(logger)
 	store, _ := LoadMockStore()
 
@@ -307,13 +308,18 @@ func BenchmarkServerStartup(b *testing.B) {
 		serverTransport, clientTransport := mcp.NewInMemoryTransports()
 
 		ctx, cancel := context.WithCancel(context.Background())
-		go server.Run(ctx, serverTransport)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			server.Run(ctx, serverTransport)
+		}()
 
-		// 模拟客户连接以完成握手
 		client := mcp.NewClient(&mcp.Implementation{Name: "bench", Version: "1.0"}, nil)
 		session, _ := client.Connect(context.Background(), clientTransport, nil)
 
 		session.Close()
 		cancel()
+		wg.Wait()
 	}
 }

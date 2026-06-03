@@ -33,7 +33,7 @@ var mcpCmd = &cobra.Command{
 		store, err := mcpserver.LoadMockStore()
 		if err != nil {
 			logger.Warn("加载 mock 配置失败，使用内嵌默认值", "error", err)
-			store, _ = mcpserver.LoadMockStore()
+			store = mcpserver.DefaultMockStore()
 		}
 
 		server := mcpserver.NewMCPServer(gen, store.DeviceLister, store.ProcessLister, logger)

@@ -81,6 +81,12 @@ func mockConfigPath() string {
 	return filepath.Join(home, ".fridaforge", "mock_devices.yaml")
 }
 
+// DefaultMockStore 使用内嵌默认值创建 MockStore（无需读取 YAML 文件）
+func DefaultMockStore() *MockStore {
+	cfg := defaultMockConfig()
+	return buildStore(cfg)
+}
+
 // LoadMockStore 创建桩数据。优先加载 YAML 配置文件，
 // 如文件不存在则使用内嵌默认值。
 func LoadMockStore() (*MockStore, error) {
@@ -92,6 +98,11 @@ func LoadMockStore() (*MockStore, error) {
 			return nil, fmt.Errorf("解析 mock 配置文件失败: %w", unmarshalErr)
 		}
 	}
+
+	return buildStore(cfg), nil
+}
+
+func buildStore(cfg MockStoreConfig) *MockStore {
 
 	devices := make([]device.Device, 0, len(cfg.Devices))
 	for _, d := range cfg.Devices {
@@ -112,5 +123,5 @@ func LoadMockStore() (*MockStore, error) {
 	return &MockStore{
 		DeviceLister:  &mockDeviceLister{devices: devices},
 		ProcessLister: &StubProcessLister{processesByDevice: procMap},
-	}, nil
+	}
 }

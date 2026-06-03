@@ -176,6 +176,23 @@ func (s *Server) deviceListHandler(ctx context.Context, req *mcp.CallToolRequest
 func (s *Server) processListHandler(ctx context.Context, req *mcp.CallToolRequest, input ProcessListInput) (*mcp.CallToolResult, ProcessListOutput, error) {
 	s.logger.Info("tool called", "tool", "process_list", "device_id", input.DeviceID)
 
+	// 校验设备存在性
+	devices, err := s.deviceLister.ListDevices(ctx)
+	if err != nil {
+		s.logger.Error("process_list 设备枚举失败", "error", err)
+		return nil, ProcessListOutput{}, fmt.Errorf("设备枚举失败: %w", err)
+	}
+	found := false
+	for _, d := range devices {
+		if d.ID == input.DeviceID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, ProcessListOutput{}, fmt.Errorf("设备不存在: %s", input.DeviceID)
+	}
+
 	procs, err := s.processLister.ListProcesses(ctx, input.DeviceID)
 	if err != nil {
 		s.logger.Error("process_list 失败", "error", err)

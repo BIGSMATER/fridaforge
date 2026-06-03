@@ -89,13 +89,16 @@ type StubProcessLister struct {
 	processesByDevice map[string][]ProcessListItem
 }
 
-// ListProcesses 返回指定设备的模拟进程列表
+// ListProcesses 返回指定设备的模拟进程列表。
+// 设备不存在时返回空列表（Stub 模式下不报错，依赖调用方校验）。
 func (s *StubProcessLister) ListProcesses(ctx context.Context, deviceID string) ([]ProcessListItem, error) {
 	procs, ok := s.processesByDevice[deviceID]
 	if !ok {
 		return nil, nil
 	}
-	return procs, nil
+	result := make([]ProcessListItem, len(procs))
+	copy(result, procs)
+	return result, nil
 }
 
 // Server 是 MCP Server 的核心结构体，持有所有依赖
