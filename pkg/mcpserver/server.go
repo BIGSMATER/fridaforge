@@ -148,24 +148,43 @@ func (s *Server) validateHandler(ctx context.Context, req *mcp.CallToolRequest, 
 	return nil, output, nil
 }
 
-// ---------- device_list stub ----------
+// ---------- device_list handler ----------
 
 func (s *Server) deviceListHandler(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, DeviceListOutput, error) {
-	// Phase 4 实现
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: "// device_list stub: 将在 Phase 4 实现"},
-		},
-	}, DeviceListOutput{}, nil
+	s.logger.Info("tool called", "tool", "device_list")
+
+	devices, err := s.deviceLister.ListDevices(ctx)
+	if err != nil {
+		s.logger.Error("device_list 失败", "error", err)
+		return nil, DeviceListOutput{}, fmt.Errorf("设备枚举失败: %w", err)
+	}
+
+	items := make([]DeviceListItem, 0, len(devices))
+	for _, d := range devices {
+		items = append(items, DeviceListItem{
+			ID:          d.ID,
+			Name:        d.Name,
+			ConnectType: string(d.ConnectType),
+		})
+	}
+
+	return nil, DeviceListOutput{Devices: items}, nil
 }
 
-// ---------- process_list stub ----------
+// ---------- process_list handler ----------
 
 func (s *Server) processListHandler(ctx context.Context, req *mcp.CallToolRequest, input ProcessListInput) (*mcp.CallToolResult, ProcessListOutput, error) {
-	// Phase 4 实现
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: "// process_list stub: 将在 Phase 4 实现"},
-		},
-	}, ProcessListOutput{}, nil
+	s.logger.Info("tool called", "tool", "process_list", "device_id", input.DeviceID)
+
+	procs, err := s.processLister.ListProcesses(ctx, input.DeviceID)
+	if err != nil {
+		s.logger.Error("process_list 失败", "error", err)
+		return nil, ProcessListOutput{}, fmt.Errorf("进程枚举失败: %w", err)
+	}
+
+	if procs == nil {
+		procs = []ProcessListItem{}
+	}
+
+	return nil, ProcessListOutput{Processes: procs}, nil
 }

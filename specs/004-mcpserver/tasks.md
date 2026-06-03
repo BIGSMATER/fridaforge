@@ -72,10 +72,10 @@
 
 ### US3 + US4 实现
 
-- [ ] T013 [US3] 在 `pkg/mcpserver/tools_device.go` 中实现 `device_list` handler：调用注入的 `DeviceLister.ListDevices(ctx)`，映射 `[]device.Device` → `[]DeviceListItem`，返回 `DeviceListOutput` 结构化 JSON
-- [ ] T014 [US4] 在 `pkg/mcpserver/tools_device.go` 中实现 `process_list` handler：调用注入的 `ProcessLister.ListProcesses(ctx, deviceID)`，成功返回 `ProcessListOutput`，失败返回 `isError: true` 含 "device not found" 信息
-- [ ] T015 [US3] 创建 `pkg/mcpserver/tools_device_test.go` — table-driven 测试 `device_list` handler（非空设备列表、空列表、lister 错误）
-- [ ] T016 [US4] 在 `pkg/mcpserver/tools_device_test.go` 中补充 table-driven 测试 `process_list` handler（有效设备返回进程列表、无效设备 ID 返回错误、lister 内部错误）
+- [x] T013 [US3] 在 `pkg/mcpserver/tools_device.go` 中实现 `device_list` handler：调用注入的 `DeviceLister.ListDevices(ctx)`，映射 `[]device.Device` → `[]DeviceListItem`，返回 `DeviceListOutput` 结构化 JSON
+- [x] T014 [US4] 在 `pkg/mcpserver/tools_device.go` 中实现 `process_list` handler：调用注入的 `ProcessLister.ListProcesses(ctx, deviceID)`，成功返回 `ProcessListOutput`，失败返回 `isError: true` 含 "device not found" 信息
+- [x] T015 [US3] 创建 `pkg/mcpserver/tools_device_test.go` — table-driven 测试 `device_list` handler（非空设备列表、空列表、lister 错误）
+- [x] T016 [US4] 在 `pkg/mcpserver/tools_device_test.go` 中补充 table-driven 测试 `process_list` handler（有效设备返回进程列表、无效设备 ID 返回错误、lister 内部错误）
 
 **Checkpoint**: 4 个 Tool 全部功能完整，可独立测试。
 
