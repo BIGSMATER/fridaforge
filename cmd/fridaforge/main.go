@@ -26,6 +26,9 @@ var rootCmd = &cobra.Command{
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if cmd.Name() == "mcp" {
+			return // MCP 协议不得在 stdin/stdout 写入额外内容
+		}
 		if err := checkEthicalDisclaimer(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)

@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M4 学习笔记：MCP Server 集成</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; line-height: 1.7; color: #333; }
+  h1 { border-bottom: 2px solid #4a90d9; padding-bottom: 10px; }
+  h2 { margin-top: 40px; color: #2c5aa0; }
+  h3 { margin-top: 25px; color: #3a6db5; }
+  pre { background: #f5f5f5; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 14px; }
+  code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-size: 13px; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f0f4f8; }
+  aside { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; margin: 15px 0; }
+  dl { margin: 15px 0; }
+  dt { font-weight: bold; margin-top: 10px; }
+  dd { margin-left: 20px; color: #555; }
+  blockquote { background: #e7f3ff; border-left: 4px solid #4a90d9; padding: 10px 15px; margin: 15px 0; }
+  details { margin: 15px 0; border: 1px solid #ddd; border-radius: 6px; padding: 10px 15px; }
+  summary { cursor: pointer; font-weight: bold; color: #2c5aa0; }
+  @media print {
+    body { font-size: 12pt; }
+    pre, code { font-size: 10pt; }
+    aside { background: none; border: 1px solid #999; }
+  }
+</style>
+</head>
+<body>
+
+<h1>M4 学习笔记：MCP Server 集成</h1>
+
+<blockquote>
+  Milestone: M4 | 状态: 已完成<br>
+  三轨并行：Go 语言 / Android 逆向 / AI 编程范式
+</blockquote>
+
+<details open>
+<summary>全文大纲</summary>
+<ol>
+  <li><a href="#go">Go 语言轨道</a> — encoding/json struct tag, slog, interface 注入</li>
+  <li><a href="#reverse">逆向/底层轨道</a> — M4 在 FridaForge 知识体系中的位置</li>
+  <li><a href="#ai">AI 编程轨道</a> — MCP 协议设计哲学, JSON-RPC 2.0, LLM-Tool 交互</li>
+</ol>
+</details>
+
+<h2 id="go">一、Go 语言轨道</h2>
+
+<h3>1.1 encoding/json struct tag — 自定义序列化</h3>
+
+<p>Go 的 <code>encoding/json</code> 通过 struct tag 控制序列化行为。M4 中利用 json + jsonschema 双 tag 模式，让 MCP SDK 自动生成 Tool 的 inputSchema：</p>
+
+<pre><code>type GenerateInput struct {
+    AppPackage string `json:"app_package" jsonschema:"目标应用包名,required"`
+    ClassName  string `json:"class_name" jsonschema:"目标类全限定名,required"`
+}</code></pre>
+
+<p>tag 写在反引号内，key:value 用空格或逗号分隔。<code>json:"app_package"</code> 控制 JSON 字段名，<code>jsonschema:"描述,required"</code> 让 SDK 生成 JSON Schema 的 description 和 required。</p>
+
+<pre><code>// pkg/mcpserver/types.go —— 项目实际代码中的完整双-tag 结构
+type GenerateInput struct {
+    AppPackage string `json:"app_package" jsonschema:"目标应用包名,required"`
+    ClassName  string `json:"class_name" jsonschema:"目标类全限定名,required"`
+    Signature  string `json:"signature,omitempty" jsonschema:"方法参数签名，仅 overload 时可选"`
+    ModuleName string `json:"module_name,omitempty" jsonschema:"原生 .so 模块名，仅 native 时必填"`
+}</code></pre>
+
+<aside><strong>omitempty tag</strong>：标记此 tag 的字段为零值时不会序列化到 JSON，保证 Tool 的 inputSchema 不会要求用户填写可选字段——JSON Schema 的 required 列表仅含非 omitempty 字段。</aside>
+
+<h3>1.2 log/slog 结构化日志</h3>
+
+<p>Go 1.21 引入的 <code>slog</code> 替代传统的 <code>log</code> 包，支持键值对结构化输出：</p>
+
+<pre><code>logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+logger.Info("tool called", "tool", "spec_generate", "class", "com.example.Test")</code></pre>
+
+<aside>
+  <strong>关键约束</strong>：MCP stdio 模式下，stdout 仅用于 JSON-RPC 协议消息，日志必须走 stderr。
+</aside>
+
+<h3>1.3 interface 注入模式 — 依赖解耦</h3>
+
+<p>依赖注入的核心思想：<strong>把"对象需要的东西"从外部传进去，而不是在内部自己创建</strong>。</p>
+
+<pre><code>// ❌ 硬编码依赖：Server 自己决定用什么 DeviceLister
+type Server struct {
+    lister *StubDeviceLister  // 写死了具体类型
+}
+func NewServer() *Server {
+    return &Server{lister: &StubDeviceLister{}}  // 内部创建
+}
+
+// ✅ 依赖注入：调用者决定传什么进来
+type Server struct {
+    lister DeviceLister  // 依赖接口，不依赖具体类型
+}
+func NewServer(lister DeviceLister) *Server {  // 参数传进来
+    return &Server{lister: lister}
+}</code></pre>
+
+<details>
+<summary>三层价值——为什么用依赖注入？</summary>
+<ol>
+  <li><strong>方便测试</strong>：换一个参数就切换测试/生产模式，Server 内部代码一行不改。<br>
+    <code>server := NewMCPServer(stubLister, ...)   // 测试时注入假数据</code><br>
+    <code>server := NewMCPServer(fridaLister, ...)  // 生产时注入真实 Frida</code>
+  </li>
+  <li><strong>隔离 CGO 污染</strong>：<code>pkg/fridaengine</code> 依赖 CGO，M4 用 interface 切断编译时依赖链，不 import fridaengine 就能编译运行。</li>
+  <li><strong>独立演进</strong>：设备枚举的实现可以换成 ADB、Docker、模拟器——Server 完全不感知变化。</li>
+</ol>
+</details>
+
+<details open>
+<summary>Go 的隐式 interface——与 Java 的关键区别</summary>
+<p>Go 不需要 <code>implements</code> 关键字。只要你有同名同签名的方法，就自动满足 interface：</p>
+<pre><code>// pkg/device/manager.go —— 定义 interface（接口方）
+type DeviceLister interface {
+    ListDevices(ctx context.Context) ([]Device, error)
+}
+
+// pkg/fridaengine/device.go —— 实现方（零声明，签名一致即自动满足）
+type FridaDeviceLister struct { ... }
+func (f *FridaDeviceLister) ListDevices(ctx context.Context) ([]device.Device, error) { ... }
+
+// pkg/device/manager.go —— 另一个实现（同样零声明）
+type StubDeviceLister struct { ... }
+func (s *StubDeviceLister) ListDevices(ctx context.Context) ([]device.Device, error) { ... }</code></pre>
+</details>
+
+<details>
+<summary>M4 的注入全景</summary>
+<pre><code>cmd/fridaforge/mcp.go —— 调用者负责创建依赖
+  │
+  ├── store := LoadMockStore("~/mock_devices.yaml")  ← 创建桩数据
+  │
+  └── NewMCPServer(
+        store.DeviceLister,   ← 注入 DeviceLister interface
+        store.ProcessLister,  ← 注入 ProcessLister interface
+        slog.New(...),        ← 注入 slog.Logger
+      )</code></pre>
+<p>Server 收到的都是 interface，不知道也不关心这些 interface 背后是真实 Frida 还是 YAML 文件。</p>
+</details>
+
+<h3>1.4 go-sdk Tool 注册：泛型 + 反射协同模式</h3>
+
+<p>go-sdk 的 <code>mcp.AddTool</code> 同时使用了 Go 的两个高级特性：泛型（编译期类型安全）+ 反射（运行时自动生成 JSON Schema）。两者配合让 Tool 注册只需写 struct + handler。</p>
+
+<p><strong>泛型基础</strong>——同逻辑、不同类型，不复制代码：</p>
+
+<pre><code>// ❌ 每个类型写一遍
+func AddInt(a, b int) int           { return a + b }
+func AddFloat(a, b float64) float64 { return a + b }
+
+// ✅ 泛型写一次
+func Add[T int | float64](a, b T) T { return a + b }</code></pre>
+
+<p><code>[T int | float64]</code> 叫类型参数列表。<code>T</code> 是占位符，<code>int | float64</code> 是类型约束。</p>
+
+<p><strong>AddTool[In, Out any]</strong>——两个类型参数，编译期验证签名：</p>
+
+<pre><code>// go-sdk 声明
+func AddTool[In, Out any](s *Server, t *Tool, h func(ctx, ..., In) (..., Out, error))
+
+// 调用——编译器自动推断：
+mcp.AddTool(server, &mcp.Tool{...}, generateHandler)
+//  generateHandler 签名 → In=GenerateInput, Out=GenerateOutput
+
+// ❌ 类型不匹配 → 编译错误，不会留到运行时
+mcp.AddTool(server, tool, func(ctx, req, string) (...) {...}) // In 推断为 GenerateInput ≠ string</code></pre>
+
+<p><strong>反射基础</strong>——运行时读取任意类型的结构，go-sdk 通过它自动生成 JSON Schema：</p>
+
+<pre><code>func inspectStruct(v any) {
+    t := reflect.TypeOf(v)        // 拿身份证
+    for i := 0; i &lt; t.NumField(); i++ {
+        field := t.Field(i)
+        field.Name                 // → "AppPackage"
+        field.Tag.Get("json")      // → "app_package"
+        field.Tag.Get("jsonschema") // → "目标应用包名,required"
+    }
+}</code></pre>
+
+<aside>
+  <strong>分工</strong>：泛型管编译期——签名校验、类型安全；反射管运行时——生成 JSON Schema、JSON 反序列化。两者配合让注册一个 Tool 只需写 struct + handler，三行代码。
+</aside>
+
+<p><strong>项目实际代码</strong>——<code>pkg/mcpserver/server.go</code>：</p>
+
+<pre><code>func registerTools(server *mcp.Server, logger *slog.Logger) {
+    mcp.AddTool(server, &mcp.Tool{
+        Name: "spec_generate",
+        Description: "根据 Hook 参数生成完整的 Frida JavaScript 脚本",
+    }, generateHandler)  // 泛型推断 + 反射生成 schema
+
+    mcp.AddTool(server, &mcp.Tool{
+        Name: "spec_validate",
+        Description: "校验 Hook 参数是否合法",
+    }, validateHandler)
+}</code></pre>
+
+<h3>1.5 闭包捕获依赖——Go 的轻量 DI</h3>
+
+<p><strong>问题</strong>：go-sdk 的 <code>mcp.AddTool</code> 要求 handler 签名固定，不能加额外参数。但 handler 需要访问 <code>generator</code> 和 <code>logger</code>。</p>
+
+<p><strong>答案：闭包</strong>——函数 + 它记住的外层变量。</p>
+
+<p>从零开始：</p>
+
+<pre><code>// 第 1 步：普通函数——只用参数
+func add(a, b int) int { return a + b }
+
+// 第 2 步：函数内部定义函数
+func main() {
+    x := 10
+    inner := func() { fmt.Println(x) }  // inner 用了外层的 x
+    inner()  // 10
+}
+
+// 第 3 步：把内部函数返回出去——这就是闭包
+func makePrinter(msg string) func() {
+    return func() { fmt.Println(msg) }   // 记住了创建时的 msg
+}
+p1 := makePrinter("Hello")   // p1 记住 msg="Hello"
+p2 := makePrinter("World")   // p2 记住 msg="World"
+p1()  // "Hello"             ← 各记住各的
+p2()  // "World"</code></pre>
+
+<aside><strong>关键</strong>：闭包记住的是变量本身（地址），不是当时的值。<code>x := 10; f := func() { println(x) }; x = 20; f()</code> 输出 20。</aside>
+
+<p><strong>项目实际代码</strong>——<code>pkg/mcpserver/server.go</code>，每个 handler 是闭包，捕获外层 <code>s *Server</code>：</p>
+
+<pre><code>func (s *Server) registerTools(server *mcp.Server) {
+    mcp.AddTool(server, &mcp.Tool{Name: "spec_generate", ...},
+        // ──────────── 闭包开始 ────────────
+        func(ctx, req, input GenerateInput) (*Result, GenerateOutput, error) {
+            s.logger.Info(...)                       // ← s 来自闭包捕获
+            output, err := s.generator.Generate(...) // ← 同上
+            return ..., nil                          // 签名完全匹配 go-sdk 要求
+        // ──────────── 闭包结束 ────────────
+        })
+}</code></pre>
+
+<details open>
+<summary>对比三种 DI 方式</summary>
+<table>
+  <tr><th>方式</th><th>写法</th><th>适用场景</th></tr>
+  <tr><td>全局变量</td><td><code>var gen *Generator</code></td><td>永远别用</td></tr>
+  <tr><td>构造函数参数</td><td><code>NewMCPServer(gen, logger)</code></td><td>Server 级别共用依赖</td></tr>
+  <tr><td>闭包捕获</td><td><code>func(...) { s.gen.Generate() }</code></td><td>Handler 级别，固定签名下间接访问</td></tr>
+</table>
+</details>
+
+<blockquote><strong>一句话</strong>：闭包就是让函数"私自带行李"——go-sdk 不让你加参数（行李不让带上飞机），但闭包把依赖藏进了函数内部。</blockquote>
+
+<h2 id="reverse">二、逆向/底层轨道</h2>
+
+<h3>2.1 M4 在 FridaForge 知识体系中的位置</h3>
+
+<p>M4 的逆向知识是横向串联，而非纵向深入。它把 M1-M3 的产出物组装成 AI 工具可调用的形式：</p>
+
+<blockquote>
+  M1 (YAML 配置解析) + M2 (Frida 引擎) + M3 (代码生成器) = M4 (AI 可调用平台)
+</blockquote>
+
+<h3>2.2 Frida 知识全链表</h3>
+
+<table>
+  <tr><th>Milestone</th><th>知识单元</th><th>M4 中使用方式</th></tr>
+  <tr><td>M1</td><td>HookType (overload/override/native)</td><td>spec_generate Tool 按类型分发模板</td></tr>
+  <tr><td>M1</td><td>YAML HookSpec → Go struct</td><td>spec_validate Tool 校验参数</td></tr>
+  <tr><td>M2</td><td>DeviceLister interface</td><td>device_list Tool（Stub 模式）</td></tr>
+  <tr><td>M2</td><td>Frida 生命周期 (enumerate→attach→inject)</td><td>运行时知识储备，M4 通过 interface 解耦</td></tr>
+  <tr><td>M3</td><td>codegen.Generator.Generate()</td><td>spec_generate Tool 调用生成 JS 脚本</td></tr>
+  <tr><td>M3</td><td>三种 Hook 模板 (.js.tmpl)</td><td>生成器内部使用，M4 只调用接口</td></tr>
+</table>
+
+<h2 id="ai">三、AI 编程轨道</h2>
+
+<h3>3.1 MCP 协议设计哲学</h3>
+
+<p>MCP 是 LLM 与外部工具之间的标准化接口协议。三个核心原语：</p>
+
+<table>
+  <tr><th>原语</th><th>作用</th><th>类比</th></tr>
+  <tr><td>Tool</td><td>LLM 可调用的函数</td><td>REST POST 端点</td></tr>
+  <tr><td>Resource</td><td>LLM 可读取的数据</td><td>REST GET 端点</td></tr>
+  <tr><td>Prompt</td><td>预定义的提示模板</td><td>预设 prompt pattern</td></tr>
+</table>
+
+<p>M4 仅实现 <strong>Tool</strong> 原语。Resources 和 Prompts 推迟到后续 Milestone。</p>
+
+<h3>3.2 JSON-RPC 2.0 消息格式</h3>
+
+<pre><code>// 请求
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{...}}
+
+// 响应
+{"jsonrpc":"2.0","id":1,"result":{...}}
+
+// 错误
+{"jsonrpc":"2.0","id":1,"error":{"code":-32600,"message":"..."}}
+
+// 通知（无 id）
+{"jsonrpc":"2.0","method":"notifications/initialized"}</code></pre>
+
+<p>关键区别：请求有 <code>id</code>（需要响应），通知无 <code>id</code>（单向）。</p>
+
+<details>
+<summary>JSON-RPC 2.0 标准错误码</summary>
+<table>
+  <tr><th>Code</th><th>含义</th></tr>
+  <tr><td>-32700</td><td>Parse error — JSON 解析失败</td></tr>
+  <tr><td>-32600</td><td>Invalid Request — 不是合法 JSON-RPC</td></tr>
+  <tr><td>-32601</td><td>Method not found</td></tr>
+  <tr><td>-32602</td><td>Invalid params</td></tr>
+  <tr><td>-32603</td><td>Internal error</td></tr>
+</table>
+</details>
+
+<h3>3.3 LLM 如何"理解" Tool</h3>
+
+<p>LLM 通过 Tool 的三个属性来理解如何调用：</p>
+
+<dl>
+  <dt>name</dt>
+  <dd>唯一标识符（如 "spec_generate"），LLM 用字符串匹配选择 Tool</dd>
+  <dt>description</dt>
+  <dd>自然语言描述，LLM 判断何时使用</dd>
+  <dt>inputSchema</dt>
+  <dd>JSON Schema 结构化参数定义，LLM 构造调用参数</dd>
+</dl>
+
+<aside>
+  <strong>设计原则</strong>：一个设计良好的 Tool description 应该让 LLM 在 zero-shot 条件下（无示例）就能正确理解使用场景和参数含义。
+</aside>
+
+<h3>3.4 MCP 基础知识与开发</h3>
+
+<p><strong>MCP 是什么</strong>：LLM 和外部工具之间的标准化通信协议。类比 HTTP 是浏览器 ↔ 服务器的协议，MCP 是 AI 助手 ↔ 外部工具的协议。它解决的根本问题：AI 的训练数据是离线快照，无法访问你的本地工具、文件、API——MCP 让 AI 有了"手"。</p>
+
+<p><strong>三个原语</strong>：</p>
+
+<table>
+  <tr><th>原语</th><th>做什么</th><th>类比</th><th>M4 实现？</th></tr>
+  <tr><td><strong>Tool</strong></td><td>LLM 调用你写的函数</td><td>REST POST</td><td>✅ 4 个</td></tr>
+  <tr><td><strong>Resource</strong></td><td>LLM 读取数据</td><td>REST GET</td><td>❌</td></tr>
+  <tr><td><strong>Prompt</strong></td><td>预定义提示模板</td><td>快捷短语</td><td>❌</td></tr>
+</table>
+
+<p><strong>Tool 的三要素</strong>：<code>name</code>（LLM 名字匹配）+ <code>description</code>（LLM 理解用途）+ <code>inputSchema</code>（LLM 构造参数）。LLM 看到这三个属性就能独立完成"什么时候用、传什么参数"的决策。</p>
+
+<p><strong>协议生命周期</strong>：initialize（握手）→ notifications/initialized（就绪）→ tools/call（操作）→ stdin close（关闭）。四步完成一次交互。</p>
+
+<p><strong>JSON-RPC 2.0 线格式</strong>——四种消息类型，靠 <code>id</code> 匹配请求和响应。请求有 id（需响应），通知无 id（单向）。</p>
+
+<details open>
+<summary>用 go-sdk 开发 MCP Server——最小完整示例</summary>
+<pre><code>// 第 1 步：定义 I/O 类型（jsonschema tag → SDK 自动生成 JSON Schema）
+type Input struct {
+    Name string `json:"name" jsonschema:"要打招呼的人名,required"`
+}
+type Output struct {
+    Greeting string `json:"greeting"`
+}
+
+// 第 2 步：实现 handler（普通 Go 函数，SDK 负责 JSON↔Go 转换）
+func handler(ctx context.Context, req *mcp.CallToolRequest, input Input) (
+    *mcp.CallToolResult, Output, error) {
+    return &mcp.CallToolResult{...}, Output{Greeting: "Hi " + input.Name}, nil
+}
+
+// 第 3-5 步：创建 server → 注册 Tool → 启动
+server := mcp.NewServer(&mcp.Implementation{Name: "greeter", Version: "1.0"}, nil)
+mcp.AddTool(server, &mcp.Tool{Name: "greet", Description: "打招呼"}, handler)
+server.Run(context.Background(), &mcp.StdioTransport{})</code></pre>
+</details>
+
+<h3>3.5 opencode MCP 集成内部机制</h3>
+
+<p><strong>第 1 步：opencode 连接 MCP 服务器</strong>——启动时对所有配置的 MCP server 调 <code>tools/list</code>，建立全局注册表 <code>map[toolName]mcpServerConnection</code>。</p>
+
+<p><strong>第 2 步：LLM 输出 function_call</strong>——不是 JSON，是结构化标记（Claude 用 tool_use content block，OpenAI 用 tool_calls）。opencode 内部的翻译层将其转换为标准 MCP 的 <code>tools/call</code> 请求，通过对应 server 的 stdin 发送。</p>
+
+<p><strong>第 3 步：Go 函数怎么变成 Tool</strong>——<code>AddTool</code> 在运行时"装箱"你的 handler：反射读 struct tag → 生成 JSON Schema；包装一层 JSON 反序列化 + 调用 + 序列化；存入路由表。之后 <code>tools/call</code> 到达时查表 → 反序列化参数 → 调用你的原始函数 → 序列化返回。</p>
+
+<pre><code>// go-sdk 内部的装箱逻辑（概念代码）
+func AddTool[In, Out any](... ) {
+    schema := reflectSchema(reflect.TypeOf(In))        // 装箱1: 反射→JSON Schema
+    wrapped := func(req) {                              // 装箱2: JSON↔Go转换
+        var in In; json.Unmarshal(req.Args, &in)
+        return handler(ctx, req, in)                     // 装箱3: 调用你的函数
+    }
+    server.tools[name] = &tool{schema, wrapped}         // 装箱4: 存入路由表
+}</code></pre>
+
+<blockquote>完整链路：LLM 输出 function_call → opencode 查注册表找对应的 MCP server → 构造 tools/call JSON-RPC → 写 stdin → go-sdk 路由查表 → json.Unmarshal → 调你的 handler → json.Marshal → 写 stdout → opencode 读结果 → 还给 LLM</blockquote>
+
+<hr>
+<p>状态: 实现完成 — 全部 25/25 任务，覆盖率 88.4%。§3.4 新增 MCP 基础知识与开发，§3.5 新增 opencode 集成内部机制（发现 + 调用 + 函数变 Tool）。</p>
+
+</body>
+</html>
