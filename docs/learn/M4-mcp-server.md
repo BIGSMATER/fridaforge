@@ -204,15 +204,91 @@ func registerTools(server *mcp.Server, logger *slog.Logger) {
     mcp.AddTool(server, &mcp.Tool{
         Name:        "spec_generate",
         Description: "根据 Hook 参数生成完整的 Frida JavaScript 脚本",
-    }, generateHandler)  // 泛型从 handler 签名推断 In=GenerateInput, Out=GenerateOutput
+}, generateHandler)  // 泛型从 handler 签名推断 In=GenerateInput, Out=GenerateOutput
                          // 反射从 GenerateInput 的 tag 自动生成 JSON Schema
-
-    mcp.AddTool(server, &mcp.Tool{
-        Name:        "spec_validate",
-        Description: "校验 Hook 参数是否合法，返回所有字段级错误和警告信息",
-    }, validateHandler)
 }
 ```
+
+### 1.5 闭包捕获依赖——Go 的轻量 DI
+
+**问题**：go-sdk 的 `mcp.AddTool` 要求 handler 签名是固定的，不能加额外参数：
+
+```
+必须: func(ctx, req, input GenerateInput) (Result, GenerateOutput, error)
+不能: func(ctx, req, input, extraArg1, extraArg2) (...)   ← 多一个都不行
+```
+
+但 handler 需要访问 `generator` 和 `logger`。怎么传进去？
+
+**答案：闭包**。闭包 = 函数 + 它记住的外层变量。
+
+从零开始理解：
+
+```go
+// 第 1 步：普通函数——只用参数
+func add(a, b int) int { return a + b }
+
+// 第 2 步：函数内部可以定义函数
+func main() {
+    x := 10
+    inner := func() { fmt.Println(x) }  // inner 用了外层的 x
+    inner()  // 输出 10
+}
+
+// 第 3 步：把内部函数返回出去——这就是闭包
+func makePrinter(msg string) func() {
+    return func() { fmt.Println(msg) }   // 记住了创建时的 msg
+}
+
+p1 := makePrinter("Hello")   // p1 记住 msg="Hello"
+p2 := makePrinter("World")   // p2 记住 msg="World"
+p1()  // "Hello"             ← 各记住各的
+p2()  // "World"
+```
+
+**关键**：闭包记住的是变量本身（地址），不是当时的值：
+
+```go
+x := 10
+f := func() { fmt.Println(x) }
+x = 20
+f()  // 输出 20 —— 不是 10。闭包看的是 x 的最新状态
+```
+
+**项目实际代码**——在 `registerTools` 中，每个 handler 都是一个闭包，捕获了外层 `s *Server`：
+
+```go
+// pkg/mcpserver/server.go
+
+func (s *Server) registerTools(server *mcp.Server) {
+//   ↑ s 在外层
+
+    mcp.AddTool(server, &mcp.Tool{Name: "spec_generate", ...},
+        // ──────────── 闭包开始 ────────────
+        func(ctx context.Context, req *mcp.CallToolRequest, input GenerateInput) (
+            *mcp.CallToolResult, GenerateOutput, error) {
+
+            // s 不在参数列表里，但闭包能访问——因为闭包记住了外层作用域中的 s
+            s.logger.Info("tool called", "tool", "spec_generate")
+            output, err := s.generator.Generate(hookSpec, "16")
+
+            return &mcp.CallToolResult{...}, GenerateOutput{Script: output.Combined}, nil
+            // ──────────── 闭包结束 ────────────
+        })
+}
+```
+
+**三层依赖注入对比**：
+
+| 方式 | 写法 | 适用场景 |
+|------|------|----------|
+| 全局变量 | `var gen *Generator` | 永远别用 |
+| 构造函数参数 | `NewMCPServer(gen, logger, ...)` | Server 级别的依赖（整个 Server 共用的） |
+| 闭包捕获 | `func(...) { s.gen.Generate() }` | Handler 级别的依赖（通过外层变量间接访问） |
+
+M4 同时用了后两种：构造函数注入 Server 共用依赖，闭包让每个 handler 在固定签名下访问这些依赖。
+
+**一句话**：闭包就是让函数"私自带行李"——go-sdk 不让你加参数（行李不让带上飞机），但闭包把依赖藏进了函数内部。
 
 ---
 
@@ -284,4 +360,4 @@ LLM 通过 Tool 的三个属性来理解如何调用：
 
 ---
 
-> 状态: Phase 2 完成 — §1.4 重构为"泛型 + 反射协同模式"（编译期签名校验 + 运行时 JSON Schema 生成）。Phase 3 将补充 tools_spec.go 对接 codegen/config 的 handler 实现。
+> 状态: Phase 3 完成 — §1.5 新增"闭包捕获依赖：Go 的轻量 DI"（从零概念 → 项目代码）。Phase 4 将补充 device_list/process_list handler。

@@ -201,6 +201,60 @@ mcp.AddTool(server, tool, func(ctx, req, string) (...) {...}) // In 推断为 Ge
     }, validateHandler)
 }</code></pre>
 
+<h3>1.5 闭包捕获依赖——Go 的轻量 DI</h3>
+
+<p><strong>问题</strong>：go-sdk 的 <code>mcp.AddTool</code> 要求 handler 签名固定，不能加额外参数。但 handler 需要访问 <code>generator</code> 和 <code>logger</code>。</p>
+
+<p><strong>答案：闭包</strong>——函数 + 它记住的外层变量。</p>
+
+<p>从零开始：</p>
+
+<pre><code>// 第 1 步：普通函数——只用参数
+func add(a, b int) int { return a + b }
+
+// 第 2 步：函数内部定义函数
+func main() {
+    x := 10
+    inner := func() { fmt.Println(x) }  // inner 用了外层的 x
+    inner()  // 10
+}
+
+// 第 3 步：把内部函数返回出去——这就是闭包
+func makePrinter(msg string) func() {
+    return func() { fmt.Println(msg) }   // 记住了创建时的 msg
+}
+p1 := makePrinter("Hello")   // p1 记住 msg="Hello"
+p2 := makePrinter("World")   // p2 记住 msg="World"
+p1()  // "Hello"             ← 各记住各的
+p2()  // "World"</code></pre>
+
+<aside><strong>关键</strong>：闭包记住的是变量本身（地址），不是当时的值。<code>x := 10; f := func() { println(x) }; x = 20; f()</code> 输出 20。</aside>
+
+<p><strong>项目实际代码</strong>——<code>pkg/mcpserver/server.go</code>，每个 handler 是闭包，捕获外层 <code>s *Server</code>：</p>
+
+<pre><code>func (s *Server) registerTools(server *mcp.Server) {
+    mcp.AddTool(server, &mcp.Tool{Name: "spec_generate", ...},
+        // ──────────── 闭包开始 ────────────
+        func(ctx, req, input GenerateInput) (*Result, GenerateOutput, error) {
+            s.logger.Info(...)                       // ← s 来自闭包捕获
+            output, err := s.generator.Generate(...) // ← 同上
+            return ..., nil                          // 签名完全匹配 go-sdk 要求
+        // ──────────── 闭包结束 ────────────
+        })
+}</code></pre>
+
+<details open>
+<summary>对比三种 DI 方式</summary>
+<table>
+  <tr><th>方式</th><th>写法</th><th>适用场景</th></tr>
+  <tr><td>全局变量</td><td><code>var gen *Generator</code></td><td>永远别用</td></tr>
+  <tr><td>构造函数参数</td><td><code>NewMCPServer(gen, logger)</code></td><td>Server 级别共用依赖</td></tr>
+  <tr><td>闭包捕获</td><td><code>func(...) { s.gen.Generate() }</code></td><td>Handler 级别，固定签名下间接访问</td></tr>
+</table>
+</details>
+
+<blockquote><strong>一句话</strong>：闭包就是让函数"私自带行李"——go-sdk 不让你加参数（行李不让带上飞机），但闭包把依赖藏进了函数内部。</blockquote>
+
 <h2 id="reverse">二、逆向/底层轨道</h2>
 
 <h3>2.1 M4 在 FridaForge 知识体系中的位置</h3>
