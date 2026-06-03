@@ -39,7 +39,7 @@
 **⚠️ CRITICAL**: 本阶段未完成前，不得启动任何用户故事
 
 - [x] T005 [P] 创建 `pkg/mcpserver/types.go` — 定义 MCP I/O 类型（`GenerateInput`、`ValidateInput`、`ValidateOutput`、`ValidationFieldError`、`DeviceListOutput`、`DeviceListItem`、`ProcessListInput`、`ProcessListOutput`）、`ProcessLister` 接口、`StubProcessLister` stub 实现
-- [x] T006 [P] 创建 `pkg/mcpserver/mock_store.go` — 定义 YAML mock 数据类型（`MockDeviceConfig`、`MockProcessEntry`）和加载器 `LoadMockStore()`，读取 `~/.fridaforge/mock_devices.yaml`，构造 `StubDeviceLister` + `StubProcessLister`
+- [x] T006 [P] 创建 `pkg/mcpserver/mock_store.go` — 定义 YAML mock 数据类型（`MockDeviceEntry`、`MockProcessEntry`）和加载器 `LoadMockStore()`，读取 `~/.fridaforge/mock_devices.yaml`，构造 `StubDeviceLister` + `StubProcessLister`
 - [x] T007 创建 `pkg/mcpserver/server.go` — 实现 `NewMCPServer` 构造函数和 `Run()` 方法，注册 4 个 Tool（handler 先用 stub），启动 stdio transport，`slog` logger 写入 `os.Stderr`（依赖 T005、T006）
 - [x] T008 [P] 创建 `pkg/mcpserver/mock_store_test.go` — table-driven 测试：类型序列化/反序列化校验 + YAML mock 数据加载
 
@@ -55,8 +55,8 @@
 
 ### US1 + US2 实现
 
-- [x] T009 [US1] 在 `pkg/mcpserver/tools_spec.go` 中实现 `spec_generate` handler：从 `GenerateInput` 组装 `spec.HookSpec` + `spec.HookTarget`，调用 `config.Validate()` 校验，调用 `codegen.Generator.Generate()` 生成脚本，返回 `*mcp.CallToolResult`（`TextContent` 含 Combined 脚本）
-- [x] T010 [US2] 在 `pkg/mcpserver/tools_spec.go` 中实现 `spec_validate` handler：从 `ValidateInput` 组装配置，调用 `config.Validate()`，将 `spec.ValidationError`/`spec.FieldError` 转换为 `ValidateOutput`/`ValidationFieldError`（comprehensive——一次返回所有错误）
+- [x] T009 [US1] 在 `pkg/mcpserver/server.go` 中实现 `spec_generate` handler（作为 `Server` 方法，闭包注入依赖）：从 `GenerateInput` 组装 `spec.HookSpec` + `spec.HookTarget`，调用 `config.Validate()` 校验，调用 `codegen.Generator.Generate()` 生成脚本，返回 `*mcp.CallToolResult`（`TextContent` 含 Combined 脚本）
+- [x] T010 [US2] 在 `pkg/mcpserver/server.go` 中实现 `spec_validate` handler（作为 `Server` 方法）：从 `ValidateInput` 组装配置，调用 `config.Validate()`，将 `spec.ValidationError`/`spec.FieldError` 转换为 `ValidateOutput`/`ValidationFieldError`（comprehensive——一次返回所有错误）
 - [x] T011 [US1] 创建 `pkg/mcpserver/tools_spec_test.go` — table-driven 测试 `spec_generate` handler（overload/override/native 三种类型、错误场景：nil spec、缺 module_name、无效 hook_type）
 - [x] T012 [US2] 在 `pkg/mcpserver/tools_spec_test.go` 中补充 table-driven 测试 `spec_validate` handler（合法参数、空 class_name、空 app_package、native 缺 module_name、无效 hook_type、多条错误 comprehensive 返回、重复 Hook warning）
 
@@ -72,8 +72,8 @@
 
 ### US3 + US4 实现
 
-- [x] T013 [US3] 在 `pkg/mcpserver/tools_device.go` 中实现 `device_list` handler：调用注入的 `DeviceLister.ListDevices(ctx)`，映射 `[]device.Device` → `[]DeviceListItem`，返回 `DeviceListOutput` 结构化 JSON
-- [x] T014 [US4] 在 `pkg/mcpserver/tools_device.go` 中实现 `process_list` handler：调用注入的 `ProcessLister.ListProcesses(ctx, deviceID)`，成功返回 `ProcessListOutput`，失败返回 `isError: true` 含 "device not found" 信息
+- [x] T013 [US3] 在 `pkg/mcpserver/server.go` 中实现 `device_list` handler（作为 `Server` 方法）：调用注入的 `DeviceLister.ListDevices(ctx)`，映射 `[]device.Device` → `[]DeviceListItem`，返回 `DeviceListOutput` 结构化 JSON
+- [x] T014 [US4] 在 `pkg/mcpserver/server.go` 中实现 `process_list` handler（作为 `Server` 方法，含设备存在性校验）：先通过 `deviceLister` 校验设备是否存在，不存在返回错误
 - [x] T015 [US3] 创建 `pkg/mcpserver/tools_device_test.go` — table-driven 测试 `device_list` handler（非空设备列表、空列表、lister 错误）
 - [x] T016 [US4] 在 `pkg/mcpserver/tools_device_test.go` 中补充 table-driven 测试 `process_list` handler（有效设备返回进程列表、无效设备 ID 返回错误、lister 内部错误）
 
@@ -198,7 +198,7 @@ Phase 3+4 完成后:
 - [Story] 标签将 Task 映射到具体用户故事，便于追踪。
 - Phase 2 完成后每个用户故事可独立测试。
 - 所有 handler 通过闭包接收 `*slog.Logger`；`pkg/mcpserver/` 内禁止 `fmt.Println`。
-- `server.go` 注册全部 4 个 Tool；handler 实现分别在 `tools_spec.go`（US1+US2）和 `tools_device.go`（US3+US4）。
+- `server.go` 注册全部 4 个 Tool，handler 实现以 `Server` 方法形式内聚在同一文件（与 tasks.md 原始设计中独立的 tools_spec.go/tools_device.go 不同——闭包依赖注入要求 handler 访问 `s *Server`，拆分文件会增加跨文件复杂度，合并后更内聚）。
 - 按逻辑分组提交：Phase 2 合并为一个 Commit，然后每个故事单独 Commit，再 CLI，最后打磨。
 - 每个 Checkpoint 处可停下来独立验证故事。
 - 每个 Phase 完成后运行 `go test ./pkg/mcpserver/... -cover` 追踪覆盖率向 ≥80% 目标推进。
